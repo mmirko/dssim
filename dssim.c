@@ -124,6 +124,9 @@ int main( int argc, char* argv[] )
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
 
+	// Entity to load
+	char * entity;
+	char * entityfile;
 
 	///// Program start
 
@@ -187,6 +190,19 @@ int main( int argc, char* argv[] )
 	}
 
 	// Check the operation mode
+	if ((protocol_file==NULL)&&(kernel_file==NULL)) {
+		fprintf (stderr,"Either a protocol file or a custom opencl kernel is required.");
+		exit(1);
+	} else if ((protocol_file!=NULL)&&(kernel_file!=NULL)) {
+		fprintf (stderr,"A protocol file or a custom opencl kernel is required (not both).");
+		exit(1);
+	} else if ((protocol_file!=NULL)&&(kernel_file==NULL)) {
+///// TODO
+	} else if ((protocol_file==NULL)&&(kernel_file!=NULL)) {
+		entityfile=kernel_file;
+		entity= (char *) malloc((int) strlen((entityfile) - 2)*sizeof(char));
+		strncpy(entity,entityfile,(int) strlen(entityfile) - 3);
+	}
 
 	// Check and process the graph file
 	if (graph_file!=NULL) {
@@ -253,12 +269,6 @@ int main( int argc, char* argv[] )
 
 	//////// The configuration part start here
 
-	// Entity to load
-	const char * entity="broadcast";
-	const char * entityfile="broadcast.cl";
-
-//	// Node numbers
-//	unsigned int nodes = 5;
 
 	// Message types
 	unsigned int messtypes = 1;
@@ -419,7 +429,7 @@ int main( int argc, char* argv[] )
 
 	if (verbose) printf("Staring simulation:\n",l);
 
-	// Main sumoulation cycle
+	// Main simulation cycle
 	for (l=0;l<1000;l++) {
 
 		if (verbose) printf(" - Time %d:\n",l);
@@ -504,9 +514,10 @@ int main( int argc, char* argv[] )
 	clReleaseContext(context);
 	
 	//release host memory
-//	free(links);
+	free(links);
 	free(states);
 	free(messages);
+	free(entity);
 
 	// Release graph(viz) resources
 	agclose(dsgraph);
