@@ -128,6 +128,11 @@ int main( int argc, char* argv[] )
 	char * entity;
 	char * entityfile;
 
+	// OpenCL kernel source variables
+	char *kernelSource;
+	size_t source_size;
+
+
 	///// Program start
 
 	// Size, in bytes, of each vector
@@ -202,7 +207,21 @@ int main( int argc, char* argv[] )
 		entityfile=kernel_file;
 		entity= (char *) malloc((int) strlen((entityfile) - 2)*sizeof(char));
 		strncpy(entity,entityfile,(int) strlen(entityfile) - 3);
+		if (verbose) printf("Loading custom OpenCL kernel as protocol:\n   Protocol file: %s\n   Entity OpenCL function: %s\n\n",entityfile,entity);
+
 	}
+
+	// Load the kernel source code into the array kernelSource
+	fp = fopen(entityfile, "r");
+	if (!fp)
+	{
+		fprintf(stderr, "Failed load the kernel!\n");
+		return EXIT_FAILURE;
+	}
+	kernelSource = (char*)malloc(MAX_SOURCE_SIZE);
+	source_size = fread( kernelSource, 1, MAX_SOURCE_SIZE, fp);
+	fclose(fp);
+
 
 	// Check and process the graph file
 	if (graph_file!=NULL) {
@@ -299,19 +318,6 @@ int main( int argc, char* argv[] )
 	for (i=0;i<nodes*registers;i++) *(states+i)=0;
 	for (i=0;i<nodes*nodes*messtypes;i++) *(messages+i)=0;
 
-	// Load the kernel source code into the array kernelSource
-	char *kernelSource;
-	size_t source_size;
-
-	fp = fopen(entityfile, "r");
-	if (!fp)
-	{
-		fprintf(stderr, "Failed load the kernel!\n");
-		return EXIT_FAILURE;
-	}
-	kernelSource = (char*)malloc(MAX_SOURCE_SIZE);
-	source_size = fread( kernelSource, 1, MAX_SOURCE_SIZE, fp);
-	fclose(fp);
  
 	// Device buffers
 	cl_mem d_links;
@@ -332,7 +338,7 @@ int main( int argc, char* argv[] )
 	cl_int err;
  
 	// Number of work items in each local work group
-	localSize = 5;
+	localSize = 1;
  
 	// Number of total work items - localSize must be devisor
 	globalSize = ceil(nodes/(int)localSize)*localSize;
@@ -406,6 +412,8 @@ int main( int argc, char* argv[] )
 //	}
 
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
+	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
+
 *(messages)=1;
 //*(messages+24)=1;
 
@@ -416,10 +424,6 @@ int main( int argc, char* argv[] )
 //	}
 
 	err |= clEnqueueWriteBuffer(queue, d_messages_in, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
-	for (i=0;i<nodes*nodes;i++) {
-		*(messages+i)=0;
-	}
-	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
 
 	if (err != CL_SUCCESS)
 	{
@@ -429,8 +433,30 @@ int main( int argc, char* argv[] )
 
 	if (verbose) printf("Staring simulation:\n",l);
 
+	// Zero step
+	if (verbose) printf(" - Time 0:\n");
+	for (i=0 ; i < nodes ; i++) {
+		if (verbose) {
+			printf("   Node %s registers: ",(*(ithnode+i))->name);
+			for (j=0 ; j < registers ; j++) {
+				printf("%d ",*(states+i*registers+j));
+			}
+			printf("\n");
+
+			printf("   Node %s messages: ",(*(ithnode+i))->name);
+			for (j=0 ; j < nodes ; j++) {
+				for (k=0 ; k < messtypes ; k++) {
+					printf("( %d -> %d = %d ) ",i,j,*(messages+(i*nodes+j)*messtypes+k));
+				}
+			}
+			printf("\n");
+		}
+	}
+	printf("\n");
+
+
 	// Main simulation cycle
-	for (l=0;l<1000;l++) {
+	for (l=1;l<1001;l++) {
 
 		if (verbose) printf(" - Time %d:\n",l);
  
@@ -482,7 +508,10 @@ int main( int argc, char* argv[] )
 				for (j=0 ; j < nodes ; j++) {
 					for (k=0 ; k < messtypes ; k++) {
 						printf("( %d -> %d = %d ) ",i,j,*(messages+(i*nodes+j)*messtypes+k));
-						if ( *(messages+(i*nodes+j)*messtypes+k)==1) messcompl++;
+						if ( *(messages+(i*nodes+j)*messtypes+k)==1) {
+							messcompl++;
+							doneck=0;
+						}
 					}
 				}
 				printf("\n");
@@ -500,7 +529,7 @@ int main( int argc, char* argv[] )
 		d_messages_out=tempm;
 	}
 
-	printf("Time Complexity: %d\n",l+1);
+	printf("Time Complexity: %d\n",l);
 	printf("Message Complexity: %ld\n",messcompl);
  
 	// release OpenCL resources
