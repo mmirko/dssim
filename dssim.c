@@ -104,6 +104,7 @@ int main( int argc, char* argv[] )
 	char * initial_file = NULL;
 
 	// Graph(viz) managment
+	GVC_t* gvc;
 	graph_t * dsgraph;
 
 	Agnode_t * inode;
@@ -222,6 +223,7 @@ int main( int argc, char* argv[] )
 	source_size = fread( kernelSource, 1, MAX_SOURCE_SIZE, fp);
 	fclose(fp);
 
+	gvc = gvContext();
 
 	// Check and process the graph file
 	if (graph_file!=NULL) {
@@ -550,6 +552,7 @@ int main( int argc, char* argv[] )
 
 	// Release graph(viz) resources
 	agclose(dsgraph);
+	gvFreeContext(gvc);
 
 	return 0;
 }

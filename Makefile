@@ -17,15 +17,11 @@
 
 
 .phony: all
-all: dssim graphtest
+all: dssim
 
 .phony: clean
 clean:
-	rm -f *.oct *.o *.log *.logp dssim *.png graphtest
+	rm -f *.o *.png dssim
 
 dssim: dssim.c broadcast.cl
 	gcc -I/usr/local/cuda/include -lOpenCL -o dssim dssim.c -lm -lgvc
-
-graphtest: graphtest.c
-	gcc -I/usr/local/cuda/include -lOpenCL -o graphtest graphtest.c -lgraph -lcdt
-
