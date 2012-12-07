@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <math.h>
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
+#include <graphviz/graph.h>
 
 #define MAX_SOURCE_SIZE (0x100000)
  
@@ -64,9 +66,120 @@
 //"    }                                                           \n" \
 //"}                                                               \n" \
 //                                                                "\n" ;
- 
+
+void version()
+{
+	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.it\n");
+	fflush(stdout);
+}
+
+
 int main( int argc, char* argv[] )
 {
+	// Options parsing variables 
+	int c,index;
+
+	// The protocol filename
+	char * protocol_file = NULL;
+
+	// The graph filename
+	char * graph_file = NULL;
+
+	// The custom kernel filename
+	char * kernel_file = NULL;
+
+	// The initial condition filename
+	char * initial_file = NULL;
+
+	// Graph(viz) managment
+	graph_t * dsgraph;
+
+	Agnode_t * inode;
+
+	// File counter
+	FILE *fp;
+
+	// Verbose flag
+	char verbose=0;
+
+	// Start with the command line parsing
+	while ((c = getopt (argc, argv, "vVk:p:g:i:")) != -1)
+	switch (c) {
+		case 'v':
+			verbose=1;
+			break;
+		case 'V':
+			version();
+			exit(0);	
+			break;
+		case 'k':
+			kernel_file=strdup(optarg);
+			break;
+		case 'p':
+			protocol_file=strdup(optarg);
+			break;
+		case 'g':
+			graph_file=strdup(optarg);
+			break;
+		case 'i':
+			initial_file=strdup(optarg);
+			break;
+                case '?':
+                        if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
+                        {
+                                fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+                                exit(1);
+                        }
+                        else
+                        {
+                                if (isprint (optopt))
+                                {
+                                        fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+                                        exit(1);
+                                }
+                                else
+                                {
+                                        fprintf (stderr,"Unknown option character `\\x%x'.\n",optopt);
+                                        exit(1);
+                                }
+                        }
+                default:
+                        return 1;
+	}
+
+	// Exits on wrong options
+	for (index = optind; index < argc; index++) {
+		fprintf (stderr,"Non-option argument %s\n", argv[index]);
+		exit(1);
+	}
+
+	if (verbose) {
+		version();
+		printf("-----\n\n");
+	}
+
+	// Check the operation mode
+
+	// Check and process the graph file
+	if (graph_file!=NULL) {
+		fp=fopen(graph_file,"r");
+		if (!fp) {
+			fprintf (stderr,"Invalid graph file.\n");
+			exit(0);
+		}
+
+		aginit();
+
+		dsgraph=agread(fp);
+
+		for (inode=agfstnode(dsgraph);inode!=NULL;inode=agnxtnode(dsgraph,inode))
+		if (verbose) printf("Importing node: %s\n",inode->name);
+
+	} else {
+		fprintf (stderr,"No graph given, you need to use the -g option.\n");
+		exit(1);
+	}
+
 	//////// The configuration part start here
 
 	// Entity to load
@@ -122,14 +235,13 @@ int main( int argc, char* argv[] )
 	for (i=0;i<nodes*nodes*messtypes;i++) *(messages+i)=0;
 
 	// Load the kernel source code into the array kernelSource
-	FILE *fp;
 	char *kernelSource;
 	size_t source_size;
 
 	fp = fopen(entityfile, "r");
 	if (!fp)
 	{
-		printf("Error: Failed load the kernel!\n");
+		fprintf(stderr, "Failed load the kernel!\n");
 		return EXIT_FAILURE;
 	}
 	kernelSource = (char*)malloc(MAX_SOURCE_SIZE);
@@ -167,7 +279,7 @@ int main( int argc, char* argv[] )
 	err = clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, 1, &device_id, NULL);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to create a device group!\n");
+		fprintf(stderr, "Failed to create a device group!\n");
 		return EXIT_FAILURE;
 	}
  
@@ -175,7 +287,7 @@ int main( int argc, char* argv[] )
 	context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);
 	if (!context)
 	{
-		printf("Error: Failed to create a compute context!\n");
+		fprintf(stderr, "Failed to create a compute context!\n");
 		return EXIT_FAILURE;
 	} 
 
@@ -183,7 +295,7 @@ int main( int argc, char* argv[] )
 	queue = clCreateCommandQueue(context, device_id, 0, &err);
 	if (!queue)
 	{
-		printf("Error: Failed to create a command queue!\n");
+		fprintf(stderr, "Failed to create a command queue!\n");
 		return EXIT_FAILURE;
 	}
 
@@ -195,7 +307,7 @@ int main( int argc, char* argv[] )
 	err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
-    		printf("Error: Failed to build program executable!\n");
+    		fprintf(stderr, "Failed to build program executable!\n");
 		return EXIT_FAILURE;
 	}
  
@@ -203,7 +315,7 @@ int main( int argc, char* argv[] )
 	kernel = clCreateKernel(program, entity, &err);
 	if (!kernel || err != CL_SUCCESS)
 	{
-		printf("Error: Failed to create compute kernel!\n");
+		fprintf(stderr, "Failed to create compute kernel!\n");
 		return EXIT_FAILURE;
 	}
  
@@ -215,7 +327,7 @@ int main( int argc, char* argv[] )
 
 	if (!d_messages_in || !d_messages_out || !d_states || !d_links)
 	{
-		printf("Error: Failed to allocate device memory!\n");
+		fprintf(stderr, "Failed to allocate device memory!\n");
 		return EXIT_FAILURE;
 	}
 
@@ -246,7 +358,7 @@ int main( int argc, char* argv[] )
 
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to write to source array!\n");
+		fprintf(stderr, "Failed to write to source array!\n");
 		return EXIT_FAILURE;
 	}
 
@@ -262,7 +374,7 @@ for (l=0;l<6;l++) {
 	err |= clSetKernelArg(kernel, 6, sizeof(unsigned int), &nodes);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to set kernel arguments! %d\n", err);
+		fprintf(stderr, "Failed to set kernel arguments! %d\n", err);
 		return EXIT_FAILURE;
 	}
  
@@ -270,7 +382,7 @@ for (l=0;l<6;l++) {
 	err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to execute kernel!\n");
+		fprintf(stderr, "Failed to execute kernel!\n");
 		return EXIT_FAILURE;
 	}
  
@@ -283,7 +395,7 @@ for (l=0;l<6;l++) {
 
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to read output array! %d\n", err);
+		fprintf(stderr, "Failed to read output array! %d\n", err);
 		return EXIT_FAILURE;
 	}
 
@@ -335,6 +447,9 @@ doneck=1;
 //	free(links);
 	free(states);
 	free(messages);
-	
+
+	// Release graph(viz) resources
+	agclose(dsgraph);
+
 	return 0;
 }
