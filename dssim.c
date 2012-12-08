@@ -2,70 +2,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <lua.h>
+#include <lauxlib.h>
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
 #include <graphviz/graph.h>
 
 #define MAX_SOURCE_SIZE (0x100000)
  
-// Enable double precision values
-//#pragma OPENCL EXTENSION cl_khr_fp64 : enable
- 
-// OpenCL kernels: the kernel is the protocol
-//const char *kernelSource =                                      "\n" \
-//"__kernel void nodengine(  __global float *links,                \n" \
-//"                          __global float *states,               \n" \
-//"                          __global float *messages,             \n" \
-//"                          const unsigned int messtypes,         \n" \
-//"                          const unsigned int registers,         \n" \
-//"                          const unsigned int nodes)             \n" \
-//"{                                                               \n" \
-//"    //Get our global thread ID                                  \n" \
-//"    int id = get_global_id(0);                                  \n" \
-//"                                                                \n" \
-//"    //Make sure we do not go out of bounds                      \n" \
-//"    if (id < nodes)                                             \n" \
-//"        messages[id] = links[id] + states[id];                  \n" \
-//"}                                                               \n" \
-//
-
-//const char *kernelSource =                                      "\n" \
-//"#define STATE_INIT 1.0                                          \n" \
-//"#define STATE_IDLE 0.0                                          \n" \
-//"#define STATE_DONE -1.0                                          \n" \
-//"                                                                \n" \
-//"#define MESSAGE_BRD 1.0                                         \n" \
-//"                                                                \n" \
-//"__kernel void broadcast(  __global int *links,                \n" \
-//"                          __global int *states,               \n" \
-//"                          __global int *messages_in,          \n" \
-//"                          __global int *messages_out,         \n" \
-//"                          const unsigned int messtypes,         \n" \
-//"                          const unsigned int registers,         \n" \
-//"                          const unsigned int nodes)             \n" \
-//"{                                                               \n" \
-//"    //Get our global thread ID                                  \n" \
-//"    int nid = get_global_id(0);                                 \n" \
-//"                                                                \n" \
-//"    //Make sure we do not go out of bounds                      \n" \
-//"    if (nid < nodes) {                                          \n" \
-//"                                                                \n" \
-//"    //Start the entity work                                     \n" \
-//"    int mystate = states[nid];                                  \n" \
-//"                                                                \n" \
-//"//    if (mystate == STATE_INIT) {                                                            \n" \
-//"                                                                \n" \
-//"//        int i,j,nli=0;                                          \n" \
-//"//        for (i=0;i<nodes;i++) {                                 \n" \
-//"//            if (links[nid*nodes+i] > 0.0) {                     \n" \
-//"//                nli=nli+1;                                      \n" \
-//"//            }                                                   \n" \
-//"//        }                                                       \n" \
-//"                                                                \n" \
-//"        states[nid*registers] = STATE_DONE;                     \n" \
-//"    }                                                           \n" \
-//"}                                                               \n" \
-//                                                                "\n" ;
+#include "transformer.c"
 
 void version()
 {
@@ -203,6 +148,23 @@ int main( int argc, char* argv[] )
 		fprintf (stderr,"A protocol file or a custom opencl kernel is required (not both).");
 		exit(1);
 	} else if ((protocol_file!=NULL)&&(kernel_file==NULL)) {
+		
+ 		lua_State *L = luaL_newstate();
+
+		// Load the lua trasformation engine
+		if (luaL_dostring(L, transformer_function)) {
+			fprintf (stderr,"The transformer lua core did not load.");
+			exit(1);
+		}
+		if (luaL_dofile(L, protocol_file)) {
+			fprintf (stderr,"Failed to load the protocol file.");
+			exit(1);
+		}
+		lua_getglobal(L, "ciao");
+		lua_call(L,0,1);
+    		printf("Result: %d\n", lua_tointeger(L, -1));
+		lua_close(L);
+		exit(1);
 ///// TODO
 	} else if ((protocol_file==NULL)&&(kernel_file!=NULL)) {
 		entityfile=kernel_file;
@@ -216,7 +178,7 @@ int main( int argc, char* argv[] )
 	fp = fopen(entityfile, "r");
 	if (!fp)
 	{
-		fprintf(stderr, "Failed load the kernel!\n");
+		fprintf(stderr, "Failed to load the kernel!\n");
 		return EXIT_FAILURE;
 	}
 	kernelSource = (char*)malloc(MAX_SOURCE_SIZE);
