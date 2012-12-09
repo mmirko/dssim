@@ -1,0 +1,2 @@
+registers = { STATE = {"IDLE", "INIT", "DONE"} }
+messtypes = { BROADCAST = {"SENT"} }

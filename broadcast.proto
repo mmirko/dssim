@@ -1,2 +1,0 @@
-registers = { "STATE" = {"INIT", "IDLE", "DONE"} }
-

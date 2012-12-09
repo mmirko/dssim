@@ -12,9 +12,22 @@
  
 #include "transformer.c"
 
+// In case of custom kernels you have to config these:
+#define REGISTERS 0
+#define MESSTYPES 0
+
 void version()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.it\n");
+	fflush(stdout);
+}
+
+void usage()
+{
+	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
+	printf("\tdssim -g graph_dot_file -k OpenCL_custom_protocol_file -i initial_condition_file [-v]\n");
+	printf("\tdssim -g graph_dot_file -p Protocol_file -i initial_condition_file [-v]\n");
+	printf("\tdssim -V\n\n");
 	fflush(stdout);
 }
 
@@ -70,6 +83,20 @@ int main( int argc, char* argv[] )
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
 
+	// Node registers
+	unsigned int registers = REGISTERS;
+
+	// Message types
+	unsigned int messtypes = MESSTYPES;
+
+ 	// The states matrix is a nodes x registers which stores for each entity the value of the given register. Two things:
+ 	// 1 - The register value if up to the opencl kernel, it is relevant to the host only for analysis purposes.
+ 	// 2 - The first register is the state register and has to exist.
+	int *states;
+
+ 	// The messages matrix is a nodes x nodes x messtypes which stores for each x to y comunication if the message of type z has arrived
+	int *messages;
+ 
 	// Entity to load
 	char * entity;
 	char * entityfile;
@@ -110,6 +137,7 @@ int main( int argc, char* argv[] )
                         if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
                         {
                                 fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+				usage();
                                 exit(1);
                         }
                         else
@@ -117,11 +145,13 @@ int main( int argc, char* argv[] )
                                 if (isprint (optopt))
                                 {
                                         fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+					usage();
                                         exit(1);
                                 }
                                 else
                                 {
                                         fprintf (stderr,"Unknown option character `\\x%x'.\n",optopt);
+					usage();
                                         exit(1);
                                 }
                         }
@@ -132,6 +162,7 @@ int main( int argc, char* argv[] )
 	// Exits on wrong options
 	for (index = optind; index < argc; index++) {
 		fprintf (stderr,"Non-option argument %s\n", argv[index]);
+		usage();
 		exit(1);
 	}
 
@@ -150,6 +181,10 @@ int main( int argc, char* argv[] )
 	} else if ((protocol_file!=NULL)&&(kernel_file==NULL)) {
 		
  		lua_State *L = luaL_newstate();
+		luaL_openlibs(L);
+
+printf("%s",transformer_function);
+printf("\n----\n");
 
 		// Load the lua trasformation engine
 		if (luaL_dostring(L, transformer_function)) {
@@ -160,9 +195,35 @@ int main( int argc, char* argv[] )
 			fprintf (stderr,"Failed to load the protocol file.");
 			exit(1);
 		}
-		lua_getglobal(L, "transformer");
+
+		// Find out the number of protocol registers
+		lua_getglobal(L, "num_registers");
 		lua_call(L,0,1);
-    		printf("Result: %d\n", lua_tointeger(L, -1));
+		registers=lua_tointeger(L, -1);
+
+		if (registers==0) {
+			fprintf (stderr,"The protocol seems to have 0 registers, this cannot be right.");
+			lua_close(L);
+			exit(1);
+		}
+
+		// Find out the number of messages types
+		lua_getglobal(L, "num_messtypes");
+		lua_call(L,0,1);
+		messtypes=lua_tointeger(L, -1);
+
+		if (registers==0) {
+			fprintf (stderr,"The protocol seems to have 0 messtypes, this cannot be right.");
+			lua_close(L);
+			exit(1);
+		}
+
+		// Find out the number of messages types
+		lua_getglobal(L, "transformer");
+		lua_pushstring(L,protocol_file);
+		lua_call(L,1,1);
+		printf("%s",lua_tostring(L, -1));
+
 		lua_close(L);
 		exit(1);
 ///// TODO
@@ -249,26 +310,6 @@ int main( int argc, char* argv[] )
 		fprintf (stderr,"No graph given, you need to use the -g option.\n");
 		exit(1);
 	}
-
-	//////// The configuration part start here
-
-
-	// Message types
-	unsigned int messtypes = 1;
-
-	// Node registers
-	unsigned int registers = 1;
- 
- 	// The states matrix is a nodes x registers which stores for each entity the value of the given register. Two things:
- 	// 1 - The register value if up to the opencl kernel, it is relevant to the host only for analysis purposes.
- 	// 2 - The first register is the state register and has to exist.
-	int *states;
-
- 	// The messages matrix is a nodes x nodes x messtypes which stores for each x to y comunication if the message of type z has arrived
-	int *messages;
-
-
-	///////// The configuration part stops here
 
 	int doneck;
 
@@ -430,7 +471,7 @@ int main( int argc, char* argv[] )
 		err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_messages_in);
 		err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &d_messages_out);
 		err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &messtypes);
-		err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &registers);
+ 		err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &registers);
 		err |= clSetKernelArg(kernel, 6, sizeof(unsigned int), &nodes);
 		if (err != CL_SUCCESS)
 		{

@@ -23,7 +23,7 @@ all: dssim
 clean:
 	rm -f *.o *.png dssim transformer.c
 
-transformer.c : transformer.lua
+transformer.c : lua_embedder.py transformer.lua
 	./lua_embedder.py > transformer.c
 
 dssim: dssim.c broadcast.cl transformer.c

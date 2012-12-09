@@ -16,6 +16,7 @@ for filename in filelist:
 		f=open(filename,'r')
 		chars=chars+'char '+function_name+'[]="\\n\\\n'
 		for line in f:
+			line=line.replace('<<<CR>>>','\\\\n')
 			chars=chars+'\t'+line.rstrip('\n')+' \\n\\\n'
 		chars=chars+'\t";\n'
 		f.close()
