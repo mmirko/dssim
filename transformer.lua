@@ -12,8 +12,8 @@ function defines()
 			result=result..'#define '..k..'_'..v1..' '..vali..'<<<CR>>>'
 			vali=vali+1
 		end
-	end
 	result=result..'<<<CR>>>'
+	end
 	regi=0
 	for k,v in pairs(messtypes) do
 		result=result..'#define MESS_'..k..' '..regi..'<<<CR>>><<<CR>>>'
@@ -24,8 +24,8 @@ function defines()
 			result=result..'#define '..k..'_'..v1..' '..vali..'<<<CR>>>'
 			vali=vali+1
 		end
-	end
 	result=result..'<<<CR>>>'
+	end
 	return result
 end
 
