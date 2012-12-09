@@ -160,7 +160,7 @@ int main( int argc, char* argv[] )
 			fprintf (stderr,"Failed to load the protocol file.");
 			exit(1);
 		}
-		lua_getglobal(L, "ciao");
+		lua_getglobal(L, "transformer");
 		lua_call(L,0,1);
     		printf("Result: %d\n", lua_tointeger(L, -1));
 		lua_close(L);
