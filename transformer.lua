@@ -60,10 +60,15 @@ function state_machine(ttemp)
 		for k1,v1 in ipairs(sv) do
 			if (# result ~= 0) then
 				for k2,v2 in ipairs(result) do
-					table.insert(newresult,v..'_'..v1..' '..v2)
+					subre={}
+					for k3,v3 in ipairs(v2) do
+						table.insert(subre,v3)
+					end
+					table.insert(subre,v..'_'..v1)
+					table.insert(newresult,subre)
 				end
 			else
-				table.insert(newresult,v..'_'..v1)
+				table.insert(newresult,{v..'_'..v1})
 			end
 		end
 		result=newresult
@@ -104,8 +109,10 @@ function transformer(protocol_name)
 		table.insert(starttable,k)
 	end
 	for k,v in ipairs(state_machine(starttable)) do
---	for k,v in ipairs(state_machine({'STATE2'})) do
-		opencl_kernel=opencl_kernel..v..'<<<CR>>>'
+		for k1,v1 in ipairs(v) do
+			opencl_kernel=opencl_kernel..v1..' '
+		end
+		opencl_kernel=opencl_kernel..'<<<CR>>>'
 	end
 
 	opencl_kernel=opencl_kernel..footer()
