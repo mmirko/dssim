@@ -1,0 +1,2 @@
+defaults = { "STATE_IDLE", "IMPULSE_NO" , "BROADCAST_NO"}
+boundary = { A = {"STATE_INIT","IMPULSE_YES"} }

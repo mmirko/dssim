@@ -12,9 +12,38 @@
  
 #include "transformer.c"
 
-// In case of custom kernels you have to config these:
-#define REGISTERS 0
-#define MESSTYPES 0
+//////////////////////////////////////// In case of custom kernels you have to config these:
+#define REGISTERS 1
+#define MESSTYPES 1
+
+void defaults(int * states, int * messages, int nodes, int step)
+{
+	int i,j,k;
+
+	// Step 0 states and initial messages, step 1 messages_out. step -1 ignore everything (use init file)
+	if (step==0) {
+		for (i=0;i<nodes;i++) {
+			// States defaults
+			for (j=0 ; j < REGISTERS ; j++) {
+				*(states+i*REGISTERS+j)=0;
+			}
+		}
+		// State custom
+		*(states)=1;
+	}
+
+	for (i=0;i<nodes;i++) {
+		for (j=0;j<nodes;j++) {
+			// Messages defaults (both steps)
+			for (k=0 ; k < MESSTYPES ; k++) {
+				*(messages+(i*nodes+j)*MESSTYPES+k)=0;
+			}
+		}
+	}
+	// Messages default (step 0)
+	if (step==0) *(messages)=1;
+}
+/////////////////////////////////////////////////////////////////////////////////////////////
 
 void version()
 {
@@ -25,10 +54,24 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -k OpenCL_custom_protocol_file -i initial_condition_file [-v]\n");
-	printf("\tdssim -g graph_dot_file -p Protocol_file -i initial_condition_file [-v]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i initial_condition_file [-v]\n");
+	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v]\n");
 	printf("\tdssim -V\n\n");
 	fflush(stdout);
+}
+
+// Shutdown on errors
+void shutdown(GVC_t* gvc, graph_t * dsgraph, lua_State *L)
+{
+	agclose(dsgraph);
+	gvFreeContext(gvc);
+	lua_close(L);
+	exit(1);
+}
+
+// Id to name resolution (in case of custom opmode the resolution do not work)
+char * id_to_name(int opmode)
+{
 }
 
 // Search the id of the node given its host address
@@ -68,6 +111,9 @@ int main( int argc, char* argv[] )
 	Agnode_t * inode;
 	Agedge_t * iedge;
 
+	// Lua interpreter
+	lua_State *L;
+
 	// File counter
 	FILE *fp;
 
@@ -105,6 +151,8 @@ int main( int argc, char* argv[] )
 	char *kernelSource;
 	size_t source_size;
 
+	// Operation mode for initfile: 0 config, 1 custom
+	int opmode;
 
 	///// Program start
 
@@ -171,81 +219,11 @@ int main( int argc, char* argv[] )
 		printf("\n-----\n\n");
 	}
 
-	// Check the operation mode
-	if ((protocol_file==NULL)&&(kernel_file==NULL)) {
-		fprintf (stderr,"Either a protocol file or a custom opencl kernel is required.");
-		exit(1);
-	} else if ((protocol_file!=NULL)&&(kernel_file!=NULL)) {
-		fprintf (stderr,"A protocol file or a custom opencl kernel is required (not both).");
-		exit(1);
-	} else if ((protocol_file!=NULL)&&(kernel_file==NULL)) {
-		
- 		lua_State *L = luaL_newstate();
-		luaL_openlibs(L);
+	// Open LUA interpreter and libs
+	L = luaL_newstate();
+	luaL_openlibs(L);
 
-printf("%s",transformer_function);
-printf("\n----\n");
-
-		// Load the lua trasformation engine
-		if (luaL_dostring(L, transformer_function)) {
-			fprintf (stderr,"The transformer lua core did not load.");
-			exit(1);
-		}
-		if (luaL_dofile(L, protocol_file)) {
-			fprintf (stderr,"Failed to load the protocol file.");
-			exit(1);
-		}
-
-		// Find out the number of protocol registers
-		lua_getglobal(L, "num_registers");
-		lua_call(L,0,1);
-		registers=lua_tointeger(L, -1);
-
-		if (registers==0) {
-			fprintf (stderr,"The protocol seems to have 0 registers, this cannot be right.");
-			lua_close(L);
-			exit(1);
-		}
-
-		// Find out the number of messages types
-		lua_getglobal(L, "num_messtypes");
-		lua_call(L,0,1);
-		messtypes=lua_tointeger(L, -1);
-
-		if (registers==0) {
-			fprintf (stderr,"The protocol seems to have 0 messtypes, this cannot be right.");
-			lua_close(L);
-			exit(1);
-		}
-
-		// Find out the number of messages types
-		lua_getglobal(L, "transformer");
-		lua_pushstring(L,protocol_file);
-		lua_call(L,1,1);
-		printf("%s",lua_tostring(L, -1));
-
-		lua_close(L);
-		exit(1);
-///// TODO
-	} else if ((protocol_file==NULL)&&(kernel_file!=NULL)) {
-		entityfile=kernel_file;
-		entity= (char *) malloc((int) strlen((entityfile) - 2)*sizeof(char));
-		strncpy(entity,entityfile,(int) strlen(entityfile) - 3);
-		if (verbose) printf("Loading custom OpenCL kernel as protocol:\n   Protocol file: %s\n   Entity OpenCL function: %s\n\n",entityfile,entity);
-
-	}
-
-	// Load the kernel source code into the array kernelSource
-	fp = fopen(entityfile, "r");
-	if (!fp)
-	{
-		fprintf(stderr, "Failed to load the kernel!\n");
-		return EXIT_FAILURE;
-	}
-	kernelSource = (char*)malloc(MAX_SOURCE_SIZE);
-	source_size = fread( kernelSource, 1, MAX_SOURCE_SIZE, fp);
-	fclose(fp);
-
+	// Open graphviz context
 	gvc = gvContext();
 
 	// Check and process the graph file
@@ -311,19 +289,128 @@ printf("\n----\n");
 		exit(1);
 	}
 
+	// Check the operation mode
+	if ((protocol_file==NULL)&&(kernel_file==NULL)) {
+		fprintf (stderr,"Either a protocol file or a custom opencl kernel is required.");
+		exit(1);
+	} else if ((protocol_file!=NULL)&&(kernel_file!=NULL)) {
+		fprintf (stderr,"A protocol file or a custom opencl kernel is required (not both).");
+		exit(1);
+	} else if ((protocol_file!=NULL)&&(kernel_file==NULL)) {
+
+		if (initial_file == NULL) {
+			fprintf (stderr,"An intial file is needed.");
+			exit(1);
+		}
+
+		opmode=0;
+		
+
+printf("Transformer function\n");
+printf("%s",transformer_function);
+printf("\n----\n");
+
+		// Load the lua trasformation engine
+		if (luaL_dostring(L, transformer_function)) {
+			fprintf (stderr,"The transformer lua core did not load.");
+			exit(1);
+		}
+		if (luaL_dofile(L, protocol_file)) {
+			fprintf (stderr,"Failed to load the protocol file.");
+			exit(1);
+		}
+		if (luaL_dofile(L, initial_file)) {
+			fprintf (stderr,"Failed to load the initial file.");
+			exit(1);
+		}
+
+		// Find out the number of protocol registers
+		lua_getglobal(L, "num_registers");
+		lua_call(L,0,1);
+		registers=lua_tointeger(L, -1);
+
+		if (registers==0) {
+			fprintf (stderr,"The protocol seems to have 0 registers, this cannot be right.");
+			lua_close(L);
+			exit(1);
+		}
+
+		// Find out the number of messages types
+		lua_getglobal(L, "num_messtypes");
+		lua_call(L,0,1);
+		messtypes=lua_tointeger(L, -1);
+
+		if (messtypes==0) {
+			fprintf (stderr,"The protocol seems to have 0 messtypes, this cannot be right.");
+			shutdown(gvc,dsgraph,L);
+		}
+
+		for (i=0;i<messtypes;i++) {
+			lua_getglobal(L, "id_to_name");
+			lua_pushstring(L,"registegr");
+			lua_pushinteger(L,i);
+			lua_pushnil(L);
+			lua_call(L,3,1);
+			if (lua_isnil(L,-1)) {
+				fprintf (stderr,"Wrong name resolution.");
+				lua_close(L);
+				exit(1);
+			}
+			printf("%s\n",lua_tostring(L, -1));
+		}
+
+		// Allocate memory for each vector on host
+		states = (int*)malloc(nodes*registers*bytes);
+		messages = (int*)malloc(nodes*nodes*messtypes*bytes);
+
+		// Find out the number of messages types
+		lua_getglobal(L, "transformer");
+		lua_pushstring(L,protocol_file);
+		lua_call(L,1,1);
+
+		kernelSource=strdup(lua_tostring(L, -1));
+		entity=protocol_file;
+
+
+		if (verbose) {
+			printf("Produced OpenCL kernel:\n\n");
+			printf("%s",kernelSource);
+			printf("\n----\n");
+		}
+
+		exit(0);
+
+
+	} else if ((protocol_file==NULL)&&(kernel_file!=NULL)) {
+		opmode=1;
+		entityfile=kernel_file;
+		entity= (char *) malloc((int) strlen((entityfile) - 2)*sizeof(char));
+		strncpy(entity,entityfile,(int) strlen(entityfile) - 3);
+		if (verbose) printf("Loading custom OpenCL kernel as protocol:\n   Protocol file: %s\n   Entity OpenCL function: %s\n\n",entityfile,entity);
+
+		// Load the kernel source code into the array kernelSource
+		fp = fopen(entityfile, "r");
+		if (!fp)
+		{
+			fprintf(stderr, "Failed to load the kernel!\n");
+			return EXIT_FAILURE;
+		}
+		kernelSource = (char*)malloc(MAX_SOURCE_SIZE);
+		source_size = fread( kernelSource, 1, MAX_SOURCE_SIZE, fp);
+		fclose(fp);
+
+		// Allocate memory for each vector on host
+		states = (int*)malloc(nodes*registers*bytes);
+		messages = (int*)malloc(nodes*nodes*messtypes*bytes);
+
+ 	}
+
+
 	int doneck;
 
 	long int messcompl=0;
 
- 
-	// Allocate memory for each vector on host
-	states = (int*)malloc(nodes*registers*bytes);
-	messages = (int*)malloc(nodes*nodes*messtypes*bytes);
 
-	for (i=0;i<nodes*registers;i++) *(states+i)=0;
-	for (i=0;i<nodes*nodes*messtypes;i++) *(messages+i)=0;
-
- 
 	// Device buffers
 	cl_mem d_links;
 	cl_mem d_states;
@@ -410,25 +497,38 @@ printf("\n----\n");
 	// Write our data set into the input array in device memory
 	err = clEnqueueWriteBuffer(queue, d_links, CL_TRUE, 0, nodes*nodes*bytes, links, 0, NULL, NULL);
 
-*(states)=1;
-//*(states+4)=1;
-//	for (i=0;i<nodes;i++) {
-//		*(states+i)=1;
-//	}
-
+	// Set the default according to the operation mode
+	if (opmode==1) defaults(states,messages,nodes,0);
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
-	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
-
-*(messages)=1;
-//*(messages+24)=1;
-
-//	for (i=0;i<nodes;i++) {
-//		for (j=0;j<nodes;j++) {
-//			if (i==j) *(messages+i*nodes+j)=1;
-//		}
-//	}
-
 	err |= clEnqueueWriteBuffer(queue, d_messages_in, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
+
+	// Show matrices
+	if (verbose) {
+		printf("States matrix:\n");
+		for (i=0 ; i < nodes ; i++) {
+			printf("   Node %s registers: ",(*(ithnode+i))->name);
+			for (j=0 ; j < registers ; j++) {
+				printf("%d ",*(states+i*registers+j));
+			}
+			printf("\n");
+		}
+		printf("\n");
+		printf("Message matrix:\n");
+		for (i=0 ; i < nodes ; i++) {
+			for (j=0 ; j < nodes ; j++) {
+				printf("   Node %s to %s messages: ",(*(ithnode+i))->name, (*(ithnode+j))->name);
+				for (k=0 ; k < messtypes ; k++) {
+					printf("( %d -> %d = %d ) ",i,j,*(messages+(i*nodes+j)*messtypes+k));
+				}
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+	// The out_messages are set to default (with no exception)
+	if (opmode==1) defaults(states,messages,nodes,1);
+	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
 
 	if (err != CL_SUCCESS)
 	{
@@ -436,32 +536,11 @@ printf("\n----\n");
 		return EXIT_FAILURE;
 	}
 
-	if (verbose) printf("Staring simulation:\n",l);
-
-	// Zero step
-	if (verbose) printf(" - Time 0:\n");
-	for (i=0 ; i < nodes ; i++) {
-		if (verbose) {
-			printf("   Node %s registers: ",(*(ithnode+i))->name);
-			for (j=0 ; j < registers ; j++) {
-				printf("%d ",*(states+i*registers+j));
-			}
-			printf("\n");
-
-			printf("   Node %s messages: ",(*(ithnode+i))->name);
-			for (j=0 ; j < nodes ; j++) {
-				for (k=0 ; k < messtypes ; k++) {
-					printf("( %d -> %d = %d ) ",i,j,*(messages+(i*nodes+j)*messtypes+k));
-				}
-			}
-			printf("\n");
-		}
-	}
-	printf("\n");
+	if (verbose) printf("Starting simulation:\n",l);
 
 
 	// Main simulation cycle
-	for (l=1;l<1001;l++) {
+	for (l=1;l<5;l++) {
 
 		if (verbose) printf(" - Time %d:\n",l);
  
@@ -556,6 +635,9 @@ printf("\n----\n");
 	// Release graph(viz) resources
 	agclose(dsgraph);
 	gvFreeContext(gvc);
+
+	// Release LUA interpreter
+	lua_close(L);
 
 	return 0;
 }

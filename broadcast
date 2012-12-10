@@ -1,5 +1,5 @@
-registers = { STATE = {"IDLE", "INIT", "DONE"} }
+registers = { STATE = {"IDLE", "INIT", "DONE"} , STATE2 = {"IDLE", "INIT", "DONE"}}
 messtypes = { IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
-
+options = { "RESET_MESS" }
 actions = {}
 actions[{"STATE_IDLE","IMPULSE_YES"}] = { {"set", "STATE_IDLE"} , { "send","BROADCAST_SENT","N" } }

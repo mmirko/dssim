@@ -44,6 +44,36 @@ function header()
 	return result
 end
 
+function table.copy(t)
+	local t2 = {}
+	for k,v in pairs(t) do
+		t2[k] = v
+	end
+	return t2
+end
+
+function state_machine(ttemp)
+	result={}
+	if (# ttemp) > 1 then
+		k=table.remove(ttemp,1)
+		v=registers[k]
+		for k1,v1 in ipairs(v) do
+			ttempc=table.copy(ttemp)
+--			subt=state_machine(ttempc)
+			for k2,v2 in ipairs(ttempc) do
+				table.insert(result,v1..' '..v2)
+			end
+		end
+	else
+		k=table.remove(ttemp,1)
+		v=registers[k]
+		for k1,v1 in ipairs(v) do
+			table.insert(result,k..'_'..v1)
+		end
+	end
+	return result
+end
+
 function footer()
 	result=''
 	result=result..'\t}<<<CR>>>'
@@ -63,6 +93,23 @@ function transformer(protocol_name)
 	opencl_kernel=opencl_kernel..defines()
 	opencl_kernel=opencl_kernel..prototype(protocol_name)
 	opencl_kernel=opencl_kernel..header()
+
+	-- This is the composition of the internal state variables
+	opencl_kernel=opencl_kernel..'<<<CR>>>\t\t//Get the entity states<<<CR>>>'
+	for k,v in pairs(registers) do
+		opencl_kernel=opencl_kernel..'\t\tint register_'..string.lower(k)..' = states[nid*registers+REG_'..k..'];<<<CR>>>'
+	end
+
+	-- Cicle all state possibilities
+	starttable={}
+	for k,v in pairs(registers) do
+		table.insert(starttable,k)
+	end
+	for k,v in ipairs(state_machine(starttable)) do
+--	for k,v in ipairs(state_machine({'STATE2'})) do
+		opencl_kernel=opencl_kernel..v..'<<<CR>>>'
+	end
+
 	opencl_kernel=opencl_kernel..footer()
 	return opencl_kernel
 end
@@ -85,4 +132,58 @@ function num_messtypes()
 	num=0
 	for k,v in pairs(messtypes) do num=num+1 end
 	return num
+end
+
+-- Get the id of the state or message
+function name_to_id(regormess)
+	num=0
+	for k,v in pairs(registers) do
+		if 'REG_'..k==regormess then
+			return num
+		end
+		for k1,v1 in ipairs(v) do
+			if k..'_'..v1==regormess then
+				return k1-1
+			end
+		end
+	end
+	num=0
+	for k,v in pairs(messtypes) do
+		if 'MESS_'..k==regormess then
+			return num
+		end
+		for k1,v1 in ipairs(v) do
+			if k..'_'..v1==regormess then
+				return k1-1
+			end
+		end
+	end
+	return nil
+end
+
+-- Get the name of the state or message from the id: rtype is register or messtype, cid is the class id, lid is the subclass id
+function id_to_name(rtype,cid,lid)
+	if rtype == 'register' then
+		cktab=registers
+		prefix='REG_'
+	else 
+		cktab=messtypes
+		prefix='MESS_'
+	end
+	num=0
+	for k,v in pairs(cktab) do
+		if num==cid then
+			if lid==nil then
+				return prefix..k
+			else
+				for k1,v1 in ipairs(v) do
+					if k1-1==lid then
+						return k..'_'..v1
+					end
+				end
+			end
+		end
+		num=num+1
+	end
+	return nil
 end

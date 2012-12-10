@@ -1,0 +1,6 @@
+Protocol file specification:
+	- options: It is an array of string that control the overall beaviour of the entity, it can include:
+		-  RESET_MESS: Received messages are resetted after every cicle. If it is not specified messages are removed only after beeing delivered to entities
+Init file specification:
+	- defaults: List of default states and messages, it has to be messtype+registers lenght
+	- boundary: Hash of entityname -> states and messages (same format as defaults)
