@@ -54,23 +54,21 @@ end
 
 function state_machine(ttemp)
 	result={}
-	if (# ttemp) > 1 then
-		k=table.remove(ttemp,1)
-		v=registers[k]
-		for k1,v1 in ipairs(v) do
-			ttempc=table.copy(ttemp)
---			subt=state_machine(ttempc)
-			for k2,v2 in ipairs(ttempc) do
-				table.insert(result,v1..' '..v2)
+	for k,v in ipairs(ttemp) do
+		newresult={}
+		sv=registers[v]
+		for k1,v1 in ipairs(sv) do
+			if (# result ~= 0) then
+				for k2,v2 in ipairs(result) do
+					table.insert(newresult,v..'_'..v1..' '..v2)
+				end
+			else
+				table.insert(newresult,v..'_'..v1)
 			end
 		end
-	else
-		k=table.remove(ttemp,1)
-		v=registers[k]
-		for k1,v1 in ipairs(v) do
-			table.insert(result,k..'_'..v1)
-		end
+		result=newresult
 	end
+
 	return result
 end
 
