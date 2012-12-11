@@ -44,6 +44,18 @@ function header()
 	return result
 end
 
+function makelists()
+	result=''
+	if (lists) then
+		result=result..'<<<CR>>>\t\t//Local lists<<<CR>>>'
+		for k,v in pairs(lists) do
+			result=result..'\t\t_local int '..string.lower(k)..'['..v..'];<<<CR>>>'
+			result=result..'\t\tint '..string.lower(k)..'_index=0;<<<CR>>>'
+		end
+	end
+	return result
+end
+
 function table.copy(t)
 	local t2 = {}
 	for k,v in pairs(t) do
@@ -96,6 +108,7 @@ function transformer(protocol_name)
 	opencl_kernel=opencl_kernel..defines()
 	opencl_kernel=opencl_kernel..prototype(protocol_name)
 	opencl_kernel=opencl_kernel..header()
+	opencl_kernel=opencl_kernel..makelists()
 
 	-- This is the composition of the internal state variables
 	opencl_kernel=opencl_kernel..'<<<CR>>>\t\t//Get the entity states<<<CR>>>'
