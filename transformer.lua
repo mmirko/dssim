@@ -89,6 +89,90 @@ function state_machine(ttemp)
 	return result
 end
 
+function split(str, pat)
+   local t = {}  -- NOTE: use {n = 0} in Lua-5.0
+   local fpat = '(.-)' .. pat
+   local last_end = 1
+   local s, e, cap = str:find(fpat, 1)
+   while s do
+      if s ~= 1 or cap ~= '' then
+	 table.insert(t,cap)
+      end
+      last_end = e+1
+      s, e, cap = str:find(fpat, last_end)
+   end
+   if last_end <= #str then
+      cap = str:sub(last_end)
+      table.insert(t, cap)
+   end
+   return t
+end
+
+-- Create a single action
+function resolve_action(act)
+	result=''
+	for vv,atom in ipairs(act) do
+		if atom[1] == 'set' then
+			splcomm=split(atom[2],'_')
+			reg=splcomm[1]
+			val=splcomm[2]
+			result=result..'\t\t\tstates[nid*registers+REG_'..reg..']='..reg..'_'..val..';<<<CR>>><<<CR>>>'
+		elseif atom[1] == 'send' then
+			splcomm=split(atom[2],'_')
+			mtype=splcomm[1]
+			val=splcomm[2]
+			dest=atom[3]
+
+			if dest=='NEIGHBORS' then
+
+				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+				result=result..'\t\t\t\tif (links[nid*nodes+i] == YES) {<<<CR>>>'
+				result=result..'\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..val..';<<<CR>>>'
+				result=result..'\t\t\t\t}<<<CR>>>'
+				result=result..'\t\t\t}<<<CR>>>'
+			end
+		end
+	end
+	return result
+end
+
+-- The entity logic
+function create_actions()
+	result=''
+
+	for k,v in pairs(actions) do
+		result=result..'\t\tif ('
+		for k1,v1 in ipairs(k) do
+			if k1~=1 then result=result..'&&' end
+			result=result..'(flag_'..string.lower(v1)..'==YES)'
+		end
+			result=result..') {<<<CR>>>'
+			result=result..resolve_action(v)
+			result=result..'\t\t}<<<CR>>><<<CR>>>'
+	end
+	return result
+end
+
+
+-- The option that go after the entity activity
+function footer_options()
+	result=''
+
+	for k,v in ipairs(options) do
+		if v == 'RESET_MESS' then
+			result=result..'<<<CR>>>\t\t// Clean up all the received messages<<<CR>>>'
+			result=result..'\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+			result=result..'\t\t\tfor (j=0;j<messtypes;j++) {<<<CR>>>'
+			result=result..'\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+j] != NO) {<<<CR>>>'
+			result=result..'\t\t\t\t\tmessages_in[(i*nodes+nid)*messtypes+j]=NO;<<<CR>>>'
+			result=result..'\t\t\t\t}<<<CR>>>'
+			result=result..'\t\t\t}<<<CR>>>'
+			result=result..'\t\t}<<<CR>>>'
+		end
+	end
+	return result
+end
+
 function footer()
 	result=''
 	result=result..'\t}<<<CR>>>'
@@ -114,20 +198,42 @@ function transformer(protocol_name)
 	opencl_kernel=opencl_kernel..'<<<CR>>>\t\t//Get the entity states<<<CR>>>'
 	for k,v in pairs(registers) do
 		opencl_kernel=opencl_kernel..'\t\tint register_'..string.lower(k)..' = states[nid*registers+REG_'..k..'];<<<CR>>>'
+
+		for k1,v1 in ipairs(v) do
+			opencl_kernel=opencl_kernel..'\t\tint flag_'..string.lower(k)..'_'..string.lower(v1)..' = NO;<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\tif ( register_'..string.lower(k)..' == '..k..'_'..v1..' ) { flag_'..string.lower(k)..'_'..string.lower(v1)..' = YES; }<<<CR>>>'
+		end
+	end
+
+	-- This is the received messages
+	opencl_kernel=opencl_kernel..'<<<CR>>>\t\t//Check the received messages<<<CR>>>'
+	for k,v in pairs(messtypes) do
+		for k1,v1 in ipairs(v) do
+			opencl_kernel=opencl_kernel..'\t\tint flag_'..string.lower(k)..'_'..string.lower(v1)..' = NO;<<<CR>>>'
+
+			opencl_kernel=opencl_kernel..'\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..k..'] == '..k..'_'..v1..') {<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t\tflag_'..string.lower(k)..'_'..string.lower(v1)..' = YES;<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t}<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t}<<<CR>>><<<CR>>>'
+		end
 	end
 
 	-- Cicle all state possibilities
-	starttable={}
-	for k,v in pairs(registers) do
-		table.insert(starttable,k)
-	end
-	for k,v in ipairs(state_machine(starttable)) do
-		for k1,v1 in ipairs(v) do
-			opencl_kernel=opencl_kernel..v1..' '
-		end
-		opencl_kernel=opencl_kernel..'<<<CR>>>'
-	end
+--	starttable={}
+--	for k,v in pairs(registers) do
+--		table.insert(starttable,k)
+--	end
+--	for k,v in ipairs(state_machine(starttable)) do
+--		for k1,v1 in ipairs(v) do
+--			opencl_kernel=opencl_kernel..v1..' '
+--		end
+--		opencl_kernel=opencl_kernel..'<<<CR>>>'
+--	end
 
+	opencl_kernel=opencl_kernel..create_actions()
+
+	opencl_kernel=opencl_kernel..footer_options()
 	opencl_kernel=opencl_kernel..footer()
 	return opencl_kernel
 end

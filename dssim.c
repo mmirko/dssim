@@ -106,7 +106,7 @@ int main( int argc, char* argv[] )
 
 	// Graph(viz) managment
 	GVC_t* gvc;
-	graph_t * dsgraph;
+	Agraph_t * dsgraph;
 
 	Agnode_t * inode;
 	Agedge_t * iedge;
@@ -303,12 +303,11 @@ int main( int argc, char* argv[] )
 			exit(1);
 		}
 
-		opmode=0;
+		opmode=1;
 		
-
-printf("Transformer function\n");
-printf("%s",transformer_function);
-printf("\n----\n");
+//printf("Transformer function\n");
+//printf("%s",transformer_function);
+//printf("\n----\n");
 
 		// Load the lua trasformation engine
 		if (luaL_dostring(L, transformer_function)) {
@@ -378,14 +377,13 @@ printf("\n----\n");
 			printf("\n----\n");
 		}
 
-		exit(0);
-
-
 	} else if ((protocol_file==NULL)&&(kernel_file!=NULL)) {
 		opmode=1;
 		entityfile=kernel_file;
-		entity= (char *) malloc((int) strlen((entityfile) - 2)*sizeof(char));
+		entity= (char *) malloc((int) (strlen(entityfile) - 2)*sizeof(char));
 		strncpy(entity,entityfile,(int) strlen(entityfile) - 3);
+		*(entity+ strlen(entityfile) - 3) = 0;
+
 		if (verbose) printf("Loading custom OpenCL kernel as protocol:\n   Protocol file: %s\n   Entity OpenCL function: %s\n\n",entityfile,entity);
 
 		// Load the kernel source code into the array kernelSource
@@ -538,9 +536,11 @@ printf("\n----\n");
 
 	if (verbose) printf("Starting simulation:\n",l);
 
+	char * filen;
+	filen = malloc(50*sizeof(char));
 
 	// Main simulation cycle
-	for (l=1;l<5;l++) {
+	for (l=1;l<10;l++) {
 
 		if (verbose) printf(" - Time %d:\n",l);
  
@@ -572,13 +572,29 @@ printf("\n----\n");
 		// Read the results from the device
 		err=clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL );
 		err|=clEnqueueReadBuffer(queue, d_messages_out, CL_TRUE, 0, nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL );
-	
+
+		for (i=0 ; i < nodes ; i++) {
+			if (*(states+i)==-1) {
+				agsafeset(*(ithnode+i), "color", "red", "");
+			} else {
+				agsafeset(*(ithnode+i), "color", "black", "");
+			}
+		}
+
+		sprintf(filen,"outfile%04d.png",l);
+		fp=fopen(filen,"w");
+		gvLayout (gvc, dsgraph, "dot");
+		gvRender (gvc, dsgraph, "png", fp);
+		gvFreeLayout(gvc, dsgraph);
+		fclose(fp);
+
+
 		if (err != CL_SUCCESS)
 		{
 			fprintf(stderr, "Failed to read output array! %d\n", err);
 			return EXIT_FAILURE;
 		}
-	
+
 		doneck=1;
 		for (i=0 ; i < nodes ; i++) {
 			if (verbose) {
@@ -612,6 +628,8 @@ printf("\n----\n");
 		d_messages_in=d_messages_out;
 		d_messages_out=tempm;
 	}
+
+
 
 	printf("Time Complexity: %d\n",l);
 	printf("Message Complexity: %ld\n",messcompl);
