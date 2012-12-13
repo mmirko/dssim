@@ -46,7 +46,7 @@ void defaults(int * states, int * messages, int nodes, int step)
 }
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void lua_defaults(lua_State *L, int * states, int * messages, int nodes, int step, int registers, int messtypes)
+void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes)
 {
 	int i,j,k;
 	int tempdefault;
@@ -86,16 +86,63 @@ void lua_defaults(lua_State *L, int * states, int * messages, int nodes, int ste
 			}
 		}
 	} else {
+		int l;
+
+		// Number of entities that have modifications
+		int bnum;
+
+		// Temporary variables that store the entity id and name
+		int bid;
+		char * bname;
+
 		// Get the number of node modified in the temporal step 
 		lua_getglobal(L, "get_boundary_num");
 		lua_pushinteger(L,step);
 		lua_call(L,1,1);
 		if (!lua_isnil(L,-1)) {
-			tempdefault=lua_tointeger(L, -1);
-			printf("%d\n",tempdefault);
-			for (k=0;k<tempdefault;k++) {
-				// Getting the node name that has modification
+			bnum=lua_tointeger(L, -1);
+		} else {
+			return;
+		}
+
+		for (l=0;l<bnum;l++) {
+			// Getting the node name that has modification
+			lua_getglobal(L, "get_boundary_el_name");
+			lua_pushinteger(L,step);
+			lua_pushinteger(L,l);
+			lua_call(L,2,1);
+			if (!lua_isnil(L,-1)) {
+				bname=(char *) lua_tostring(L, -1);
+				bid=search_node_id_from_name(ithnode,bname,nodes);
+
+				for (j=0;j<registers;j++) {
+					lua_getglobal(L, "get_boundary_el_state");
+					lua_pushinteger(L,step);
+					lua_pushstring(L,bname);
+					lua_pushinteger(L,j);
+					lua_call(L,3,1);
+					if (!lua_isnil(L,-1)) {
+						tempdefault=lua_tointeger(L, -1);
+						*(states+bid*registers+j)=tempdefault;
+					}
+				}
+
+				for (k=0;k<messtypes;k++) {
+					lua_getglobal(L, "get_boundary_el_mess");
+					lua_pushinteger(L,step);
+					lua_pushstring(L,bname);
+					lua_pushinteger(L,k);
+					lua_call(L,3,1);
+					if (!lua_isnil(L,-1)) {
+						tempdefault=lua_tointeger(L, -1);
+						*(messages+(bid*nodes+bid)*messtypes+k)=tempdefault;
+					}
+				}
+
+			} else {
+				return;
 			}
+
 		}
 	}
 }
@@ -166,6 +213,19 @@ int search_node_id(Agnode_t ** ithnode, Agnode_t * inode,int nodes)
 	int i;
 	for (i=0;i<nodes;i++) {
 		if (inode==*(ithnode+i)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Search the id of the node given its name
+int search_node_id_from_name(Agnode_t ** ithnode, char * name,int nodes)
+{
+	int i;
+
+	for (i=0;i<nodes;i++) {
+		if (!strcmp(name,(*(ithnode+i))->name)) {
 			return i;
 		}
 	}
@@ -581,8 +641,8 @@ int main( int argc, char* argv[] )
 		defaults(states,messages,nodes,-1);
 		defaults(states,messages,nodes,0);
 	} else {
-		lua_defaults(L,states,messages,nodes,-1,registers,messtypes);
-		lua_defaults(L,states,messages,nodes,0,registers,messtypes);
+		lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes);
+		lua_defaults(L,ithnode,states,messages,nodes,0,registers,messtypes);
 	}
 
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
@@ -629,7 +689,7 @@ int main( int argc, char* argv[] )
 	if (opmode==1) {
 		defaults(states,messages,nodes,-1);
 	} else {
-		lua_defaults(L,states,messages,nodes,-1,registers,messtypes);
+		lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes);
 	}
 
 	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
@@ -682,7 +742,7 @@ int main( int argc, char* argv[] )
 		if (pngout) {
 
 			for (i=0 ; i < nodes ; i++) {
-				if (*(states+i)==-1) {
+				if (*(states+i)==2) {
 					agsafeset(*(ithnode+i), "color", "red", "");
 				} else {
 					agsafeset(*(ithnode+i), "color", "black", "");

@@ -8,4 +8,7 @@ boundary[0] = { A = {"STATE_INIT","IMPULSE_YES"} }
 ending = {"STATE_DONE", "IMPULSE_NO" , "BROADCAST_NO" }
 
 --print(get_default_state(0))
---print(get_boundary_num(1))
+--print(get_boundary_num(0))
+--print(get_boundary_el_name(0,0))
+--print(get_boundary_el_state(0,"A",0))
+--print(get_boundary_el_mess(0,"A",0))

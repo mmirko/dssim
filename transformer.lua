@@ -383,12 +383,62 @@ end
 
 -- Get the name of the node at index bindex and temporal step step
 function get_boundary_el_name(step,bindex)
+	if boundary[step] == nil then
+		return nil
+	end
+	tta=boundary[step]
+	num=0
+	for k,v in pairs(tta) do
+		if num==bindex then
+			return k
+		end
+		num=num+1
+	end
+	return nil
 end
 
 -- Get the state of the register reg of the node with the given name and temporal step step
 function get_boundary_el_state(step,name,reg)
+	if boundary[step] == nil then
+		return nil
+	end
+	tta=boundary[step]
+	regi=0
+	for k,v in pairs(registers) do
+		for k1,v1 in ipairs(v) do
+			for k2,v2 in ipairs(tta[name]) do
+				if v2==k..'_'..v1 then
+					return k1-1
+				end
+			end		
+		end
+		regi=regi+1
+	end
+	return nil
+	
 end
 
 -- Get the state the spontaneiys impulse reg of the node with the given name and temporal step step
 function get_boundary_el_mess(step,name,reg)
+	if boundary[step] == nil then
+		return nil
+	end
+	tta=boundary[step]
+	regi=0
+	for k,v in pairs(messtypes) do
+		if regi==reg then
+			for k1,v1 in ipairs(v) do
+				for k2,v2 in ipairs(tta[name]) do
+					if v2==k..'_NO' then
+						return 0
+					end
+					if v2==k..'_'..v1 then
+						return k1
+					end
+				end
+			end		
+		end
+		regi=regi+1
+	end
+	return nil
 end
