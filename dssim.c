@@ -72,6 +72,20 @@ void shutdown(GVC_t* gvc, graph_t * dsgraph, lua_State *L)
 // Id to name resolution (in case of custom opmode the resolution do not work)
 char * id_to_name(int opmode)
 {
+
+//	for (i=0;i<messtypes;i++) {
+//		lua_getglobal(L, "id_to_name");
+//		lua_pushstring(L,"csd");
+//		lua_pushinteger(L,i);
+//		lua_pushnil(L);
+//		lua_call(L,3,1);
+//		if (lua_isnil(L,-1)) {
+//			fprintf (stderr,"Wrong name resolution.");
+///			lua_close(L);
+//			exit(1);
+//		}
+//		printf("%s\n",lua_tostring(L, -1));
+//	}
 }
 
 // Search the id of the node given its host address
@@ -154,13 +168,16 @@ int main( int argc, char* argv[] )
 	// Operation mode for initfile: 0 config, 1 custom
 	int opmode;
 
+	// Output png files: 0 no, 1 yes
+	int pngout=0;
+
 	///// Program start
 
 	// Size, in bytes, of each vector
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "vVk:p:g:i:")) != -1)
+	while ((c = getopt (argc, argv, "vVk:p:g:i:o")) != -1)
 	switch (c) {
 		case 'v':
 			verbose=1;
@@ -180,6 +197,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 'i':
 			initial_file=strdup(optarg);
+			break;
+		case 'o':
+			pngout=1;
 			break;
                 case '?':
                         if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
@@ -344,20 +364,6 @@ int main( int argc, char* argv[] )
 			shutdown(gvc,dsgraph,L);
 		}
 
-		for (i=0;i<messtypes;i++) {
-			lua_getglobal(L, "id_to_name");
-			lua_pushstring(L,"registegr");
-			lua_pushinteger(L,i);
-			lua_pushnil(L);
-			lua_call(L,3,1);
-			if (lua_isnil(L,-1)) {
-				fprintf (stderr,"Wrong name resolution.");
-				lua_close(L);
-				exit(1);
-			}
-			printf("%s\n",lua_tostring(L, -1));
-		}
-
 		// Allocate memory for each vector on host
 		states = (int*)malloc(nodes*registers*bytes);
 		messages = (int*)malloc(nodes*nodes*messtypes*bytes);
@@ -516,7 +522,9 @@ int main( int argc, char* argv[] )
 			for (j=0 ; j < nodes ; j++) {
 				printf("   Node %s to %s messages: ",(*(ithnode+i))->name, (*(ithnode+j))->name);
 				for (k=0 ; k < messtypes ; k++) {
-					printf("( %d -> %d = %d ) ",i,j,*(messages+(i*nodes+j)*messtypes+k));
+					if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
+						printf("( %s -> %s = %d ) ",(*(ithnode+i))->name,(*(ithnode+j))->name,*(messages+(i*nodes+j)*messtypes+k));
+					}
 				}
 			}
 			printf("\n");
@@ -573,21 +581,24 @@ int main( int argc, char* argv[] )
 		err=clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL );
 		err|=clEnqueueReadBuffer(queue, d_messages_out, CL_TRUE, 0, nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL );
 
-		for (i=0 ; i < nodes ; i++) {
-			if (*(states+i)==-1) {
-				agsafeset(*(ithnode+i), "color", "red", "");
-			} else {
-				agsafeset(*(ithnode+i), "color", "black", "");
+		if (pngout) {
+
+			for (i=0 ; i < nodes ; i++) {
+				if (*(states+i)==-1) {
+					agsafeset(*(ithnode+i), "color", "red", "");
+				} else {
+					agsafeset(*(ithnode+i), "color", "black", "");
+				}
 			}
+
+			sprintf(filen,"outfile%04d.png",l);
+			fp=fopen(filen,"w");
+			gvLayout (gvc, dsgraph, "dot");
+			gvRender (gvc, dsgraph, "png", fp);
+			gvFreeLayout(gvc, dsgraph);
+			fclose(fp);
+
 		}
-
-		sprintf(filen,"outfile%04d.png",l);
-		fp=fopen(filen,"w");
-		gvLayout (gvc, dsgraph, "dot");
-		gvRender (gvc, dsgraph, "png", fp);
-		gvFreeLayout(gvc, dsgraph);
-		fclose(fp);
-
 
 		if (err != CL_SUCCESS)
 		{
@@ -603,24 +614,28 @@ int main( int argc, char* argv[] )
 					printf("%d ",*(states+i*registers+j));
 				}
 				printf("\n");
-	
+			}
+			if (verbose) {
 				printf("   Node %s messages: ",(*(ithnode+i))->name);
-				for (j=0 ; j < nodes ; j++) {
-					for (k=0 ; k < messtypes ; k++) {
-						printf("( %d -> %d = %d ) ",i,j,*(messages+(i*nodes+j)*messtypes+k));
-						if ( *(messages+(i*nodes+j)*messtypes+k)==1) {
-							messcompl++;
-							doneck=0;
-						}
+			}
+
+			for (j=0 ; j < nodes ; j++) {
+				for (k=0 ; k < messtypes ; k++) {
+					if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
+						if (verbose) printf("( %s -> %s = %d ) ",(*(ithnode+i))->name,(*(ithnode+j))->name,*(messages+(i*nodes+j)*messtypes+k));
+						messcompl++;
+						doneck=0;
 					}
 				}
-				printf("\n");
 			}
+
+			if (verbose) printf("\n");
+			
 			if (*(states+i*registers+0)!=-1) {
 				doneck=0;
 			}
 		}
-		printf("\n");
+		if (verbose) printf("\n");
 	
 		if (doneck==1) break;
 	

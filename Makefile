@@ -21,7 +21,7 @@ all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png dssim transformer.c
+	rm -f *.o *.png dssim transformer.c outfile*
 
 transformer.c : lua_embedder.py transformer.lua
 	./lua_embedder.py > transformer.c
