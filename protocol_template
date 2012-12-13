@@ -1,6 +1,8 @@
 registers = { STATE = {"IDLE", "INIT", "DONE"}}
+--registers = { STATE = {"IDLE", "INIT", "DONE"} , STATE2 = {"IDLE", "INIT", "DONE"},  STATE3 = {"IDLE", "INIT", "DONE"}}
 messtypes = { IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
 options = { "RESET_MESS" }
+--lists = { PIPPO = 5 , PLUTO = 6 }
 actions = {}
 actions[{"STATE_INIT","IMPULSE_YES"}] = { {"set", "STATE_DONE"} , { "send","BROADCAST_SENT","NEIGHBORS" } }
 actions[{"STATE_IDLE","BROADCAST_SENT"}] = { {"set", "STATE_DONE"} , { "send","BROADCAST_SENT","NEIGHBORS" } }

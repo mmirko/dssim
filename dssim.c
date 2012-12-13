@@ -44,6 +44,13 @@ void defaults(int * states, int * messages, int nodes, int step)
 		*(states)=1;
 	}
 }
+
+void ending(int * ending_states, int * ending_messages, int registers, int messtypes)
+{
+	*(ending_messages)=0;
+	*(ending_messages+1)=0;
+	*(ending_states)=2;
+}
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes)
@@ -145,6 +152,58 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 
 		}
 	}
+}
+
+void lua_ending(lua_State *L, int * ending_states, int * ending_messages, int registers, int messtypes)
+{
+	int i,j,k;
+	int tempdefault;
+
+	for (j=0;j<registers;j++) {
+		lua_getglobal(L, "get_ending_state");
+		lua_pushinteger(L,j);
+		lua_call(L,1,1);
+		if (lua_isnil(L,-1)) {
+			fprintf (stderr,"Missing ending state.");
+			lua_close(L);
+			exit(1);
+		}
+		tempdefault=lua_tointeger(L, -1);
+
+		*(ending_states+j)=tempdefault;
+	}
+
+	for (k=0;k<messtypes;k++) {
+		lua_getglobal(L, "get_ending_mess");
+		lua_pushinteger(L,k);
+		lua_call(L,1,1);
+		if (lua_isnil(L,-1)) {
+			fprintf (stderr,"Missing ending message.");
+			lua_close(L);
+			exit(1);
+		}
+		tempdefault=lua_tointeger(L, -1);
+
+		*(ending_messages+k)=tempdefault;
+	}
+}
+
+int check_end(int * states, int * messages, int nodes, int * ending_states, int * ending_messages, int registers, int messtypes)
+{
+	int i,j,k;
+	for (j=0;j<registers;j++) {
+		for (i=0;i<nodes;i++) {
+			if (*(states+i*registers+j)!=*(ending_states+j)) return 0;
+		}
+	}
+	for (i=0;i<nodes;i++) {
+		for (j=0;j<nodes;j++) {
+			for (k=0;k<messtypes;k++) {
+				if (*(messages+(i*nodes+j)*messtypes+k)!=*(ending_messages+k)) return 0;
+			}
+		}
+	}
+	return 1;
 }
 
 void version()
@@ -291,7 +350,11 @@ int main( int argc, char* argv[] )
 
  	// The messages matrix is a nodes x nodes x messtypes which stores for each x to y comunication if the message of type z has arrived
 	int *messages;
- 
+
+	// Ending conditions
+	int * ending_states;
+	int * ending_messages;
+
 	// Entity to load
 	char * entity;
 	char * entityfile;
@@ -503,6 +566,12 @@ int main( int argc, char* argv[] )
 		states = (int*)malloc(nodes*registers*bytes);
 		messages = (int*)malloc(nodes*nodes*messtypes*bytes);
 
+		// Ending states and messages memory
+		ending_states = (int*)malloc(registers*bytes);
+		ending_messages = (int*)malloc(messtypes*bytes);
+
+		lua_ending(L,ending_states,ending_messages,registers,messtypes);	
+
 		// Find out the number of messages types
 		lua_getglobal(L, "transformer");
 		lua_pushstring(L,protocol_file);
@@ -542,6 +611,11 @@ int main( int argc, char* argv[] )
 		states = (int*)malloc(nodes*registers*bytes);
 		messages = (int*)malloc(nodes*nodes*messtypes*bytes);
 
+		// Ending states and messages memory
+		ending_states = (int*)malloc(registers*bytes);
+		ending_messages = (int*)malloc(messtypes*bytes);
+
+		ending(ending_states,ending_messages,registers,messtypes);
  	}
 
 
@@ -706,7 +780,7 @@ int main( int argc, char* argv[] )
 	filen = malloc(50*sizeof(char));
 
 	// Main simulation cycle
-	for (l=1;l<10;l++) {
+	for (l=1;l<60;l++) {
 
 		if (verbose) printf(" - Time %d:\n",l);
  
@@ -764,7 +838,6 @@ int main( int argc, char* argv[] )
 			return EXIT_FAILURE;
 		}
 
-		doneck=1;
 		for (i=0 ; i < nodes ; i++) {
 			if (verbose) {
 				printf("   Node %s registers: ",(*(ithnode+i))->name);
@@ -788,7 +861,6 @@ int main( int argc, char* argv[] )
 					if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
 						if (verbose) printf("( %s -> %s = %d ) ",(*(ithnode+i))->name,(*(ithnode+j))->name,*(messages+(i*nodes+j)*messtypes+k));
 						messcompl++;
-						doneck=0;
 					}
 				}
 			}
@@ -801,7 +873,7 @@ int main( int argc, char* argv[] )
 		}
 		if (verbose) printf("\n");
 	
-		if (doneck==1) break;
+		if (check_end(states,messages,nodes,ending_states,ending_messages,registers,messtypes) == 1) break;
 	
 		tempm=d_messages_in;
 		d_messages_in=d_messages_out;

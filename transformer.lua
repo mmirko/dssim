@@ -370,6 +370,55 @@ function get_default_mess(reg)
 	return nil
 end
 
+-- Get the ending state for the register reg (index) if there is not such e default the simulation cannot start
+function get_ending_state(reg)
+	if type(registers) ~= 'table' then
+		return nil
+	end
+	if type(defaults) ~= 'table' then
+		return nil
+	end
+
+	regi=0
+	for k,v in pairs(registers) do
+		for k1,v1 in ipairs(v) do
+			for k2,v2 in ipairs(ending) do
+				if v2==k..'_'..v1 then
+					return k1-1
+				end
+			end		
+		end
+		regi=regi+1
+	end
+	return nil
+end
+
+-- Get the ending state for the messages (index) if there is not such e default the simulation cannot start
+function get_ending_mess(reg)
+	if type(messtypes) ~= 'table' then
+		return nil
+	end
+	if type(defaults) ~= 'table' then
+		return nil
+	end
+
+	regi=0
+	for k,v in pairs(messtypes) do
+		for k1,v1 in ipairs(v) do
+			for k2,v2 in ipairs(ending) do
+				if v2==k..'_NO' then
+					return 0
+				end
+				if v2==k..'_'..v1 then
+					return k1
+				end
+			end		
+		end
+		regi=regi+1
+	end
+	return nil
+end
+
 -- Get the number of boundary condition elements or nil
 function get_boundary_num(step)
 	if boundary[step] == nil then

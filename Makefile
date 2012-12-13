@@ -21,10 +21,10 @@ all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png dssim transformer.c outfile*
+	rm -f *.o *.png *.avi dssim transformer.c outfile*
 
 transformer.c : lua_embedder.py transformer.lua
 	./lua_embedder.py > transformer.c
 
-dssim: dssim.c broadcast.cl transformer.c
+dssim: dssim.c transformer.c
 	gcc -I/usr/local/cuda/include -lOpenCL -o dssim dssim.c -lm -lgvc -llua

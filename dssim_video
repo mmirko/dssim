@@ -1,0 +1,5 @@
+#!/bin/bash
+rm outfile*png
+./dssim $@
+mencoder "mf://*.png" -mf fps=1 -o videoout.avi -ovc lavc -lavcopts vcodec=msmpeg4v2:vbitrate=800
+mplayer -fs videoout.avi
