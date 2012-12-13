@@ -301,13 +301,71 @@ function id_to_name(rtype,cid,lid)
 				return prefix..k
 			else
 				for k1,v1 in ipairs(v) do
-					if k1-1==lid then
-						return k..'_'..v1
+					if cktab==registers then
+						if k1-1==lid then
+							return k..'_'..v1
+						end
+					else
+						if lid==0 then
+							return k..'_NO'
+						end
+						if k1==lid then
+							return k..'_'..v1
+						end
 					end
 				end
 			end
 		end
 		num=num+1
+	end
+	return nil
+end
+
+-- Get the default state for the register reg (index) if there is not such e default the simulation cannot start
+function get_default_state(reg)
+	if type(registers) ~= 'table' then
+		return nil
+	end
+	if type(defaults) ~= 'table' then
+		return nil
+	end
+
+	regi=0
+	for k,v in pairs(registers) do
+		for k1,v1 in ipairs(v) do
+			for k2,v2 in ipairs(defaults) do
+				if v2==k..'_'..v1 then
+					return k1-1
+				end
+			end		
+		end
+		regi=regi+1
+	end
+	return nil
+end
+
+-- Get the default state for the messages (index) if there is not such e default the simulation cannot start
+function get_default_mess(reg)
+	if type(messtypes) ~= 'table' then
+		return nil
+	end
+	if type(defaults) ~= 'table' then
+		return nil
+	end
+
+	regi=0
+	for k,v in pairs(messtypes) do
+		for k1,v1 in ipairs(v) do
+			for k2,v2 in ipairs(defaults) do
+				if v2==k..'_NO' then
+					return 0
+				end
+				if v2==k..'_'..v1 then
+					return k1
+				end
+			end		
+		end
+		regi=regi+1
 	end
 	return nil
 end

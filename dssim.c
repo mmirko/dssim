@@ -45,6 +45,46 @@ void defaults(int * states, int * messages, int nodes, int step)
 }
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+void lua_defaults(lua_State *L, int * states, int * messages, int nodes, int step, int registers, int messtypes)
+{
+	int i,j,k;
+	int tempdefault;
+
+	for (j=0;j<registers;j++) {
+		lua_getglobal(L, "get_default_state");
+		lua_pushinteger(L,j);
+		lua_call(L,1,1);
+		if (lua_isnil(L,-1)) {
+			fprintf (stderr,"Missing default.");
+			lua_close(L);
+			exit(1);
+		}
+		tempdefault=lua_tointeger(L, -1);
+
+		for (i=0;i<nodes;i++) {
+			*(states+i*registers+j)=tempdefault;
+		}
+	}
+
+	for (k=0;k<messtypes;k++) {
+		lua_getglobal(L, "get_default_mess");
+		lua_pushinteger(L,k);
+		lua_call(L,1,1);
+		if (lua_isnil(L,-1)) {
+			fprintf (stderr,"Missing default.");
+			lua_close(L);
+			exit(1);
+		}
+		tempdefault=lua_tointeger(L, -1);
+
+		for (i=0;i<nodes;i++) {
+			for (j=0;j<nodes;j++) {
+				*(messages+(i*nodes+j)*messtypes+k)=tempdefault;
+			}
+		}
+	}
+}
+
 void version()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.it\n");
@@ -70,22 +110,39 @@ void shutdown(GVC_t* gvc, graph_t * dsgraph, lua_State *L)
 }
 
 // Id to name resolution (in case of custom opmode the resolution do not work)
-char * id_to_name(int opmode)
+char * id_to_name(lua_State *L,int opmode,int regotmess, int lev1, int lev2)
 {
+	// The resolution does not work in opmode 1
+	if (opmode == 1) {
+		return NULL;
+	}
 
-//	for (i=0;i<messtypes;i++) {
-//		lua_getglobal(L, "id_to_name");
-//		lua_pushstring(L,"csd");
-//		lua_pushinteger(L,i);
-//		lua_pushnil(L);
-//		lua_call(L,3,1);
-//		if (lua_isnil(L,-1)) {
-//			fprintf (stderr,"Wrong name resolution.");
-///			lua_close(L);
-//			exit(1);
-//		}
-//		printf("%s\n",lua_tostring(L, -1));
-//	}
+	lua_getglobal(L, "id_to_name");
+
+	// 0 is a register
+	if (regotmess==0) {
+		lua_pushstring(L,"register");	
+	} else {
+		lua_pushstring(L,"mess");	
+	}
+
+	lua_pushinteger(L,lev1);
+
+	// lev2 == -1 means to resolve the name of the level1
+	if (lev2 == -1 ) {
+		lua_pushnil(L);
+	} else {
+		lua_pushinteger(L,lev2);
+	}
+
+	lua_call(L,3,1);
+	if (lua_isnil(L,-1)) {
+		fprintf (stderr,"Wrong name resolution.");
+		lua_close(L);
+		exit(1);
+	}
+
+	return (char *) strdup(lua_tostring(L,-1));
 }
 
 // Search the id of the node given its host address
@@ -102,6 +159,9 @@ int search_node_id(Agnode_t ** ithnode, Agnode_t * inode,int nodes)
 
 int main( int argc, char* argv[] )
 {
+	// Temp string
+	char * tempstr;
+
 	// Counters
 	int c,index;
 	int i,j,k,l;
@@ -323,7 +383,7 @@ int main( int argc, char* argv[] )
 			exit(1);
 		}
 
-		opmode=1;
+		opmode=0;
 		
 //printf("Transformer function\n");
 //printf("%s",transformer_function);
@@ -502,7 +562,12 @@ int main( int argc, char* argv[] )
 	err = clEnqueueWriteBuffer(queue, d_links, CL_TRUE, 0, nodes*nodes*bytes, links, 0, NULL, NULL);
 
 	// Set the default according to the operation mode
-	if (opmode==1) defaults(states,messages,nodes,0);
+	if (opmode==1) {
+		defaults(states,messages,nodes,0);
+	} else {
+		lua_defaults(L,states,messages,nodes,0,registers,messtypes);
+
+	}
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
 	err |= clEnqueueWriteBuffer(queue, d_messages_in, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
 
@@ -512,7 +577,13 @@ int main( int argc, char* argv[] )
 		for (i=0 ; i < nodes ; i++) {
 			printf("   Node %s registers: ",(*(ithnode+i))->name);
 			for (j=0 ; j < registers ; j++) {
-				printf("%d ",*(states+i*registers+j));
+				tempstr=id_to_name(L,opmode,0,j,*(states+i*registers+j));
+				if (tempstr != NULL) {
+					printf("%s ",tempstr);
+					free(tempstr);
+				} else {
+					printf("%d ",*(states+i*registers+j));
+				}
 			}
 			printf("\n");
 		}
@@ -520,12 +591,17 @@ int main( int argc, char* argv[] )
 		printf("Message matrix:\n");
 		for (i=0 ; i < nodes ; i++) {
 			for (j=0 ; j < nodes ; j++) {
-				printf("   Node %s to %s messages: ",(*(ithnode+i))->name, (*(ithnode+j))->name);
+				printf("   Node %s -> %s messages: ",(*(ithnode+i))->name,(*(ithnode+j))->name);
 				for (k=0 ; k < messtypes ; k++) {
-					if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
-						printf("( %s -> %s = %d ) ",(*(ithnode+i))->name,(*(ithnode+j))->name,*(messages+(i*nodes+j)*messtypes+k));
+					tempstr=id_to_name(L,0,1,k,*(messages+(i*nodes+j)*messtypes+k));
+					if (tempstr != NULL) {
+						printf("%s ",tempstr);
+						free(tempstr);
+					} else {
+						printf("%d ",*(messages+(i*nodes+j)*messtypes+k));
 					}
 				}
+				printf("\n");
 			}
 			printf("\n");
 		}
@@ -611,7 +687,13 @@ int main( int argc, char* argv[] )
 			if (verbose) {
 				printf("   Node %s registers: ",(*(ithnode+i))->name);
 				for (j=0 ; j < registers ; j++) {
-					printf("%d ",*(states+i*registers+j));
+					tempstr=id_to_name(L,opmode,0,j,*(states+i*registers+j));
+					if (tempstr != NULL) {
+						printf("%s ",tempstr);
+						free(tempstr);
+					} else {
+						printf("%d ",*(states+i*registers+j));
+					}
 				}
 				printf("\n");
 			}
