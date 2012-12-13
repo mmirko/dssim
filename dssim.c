@@ -20,28 +20,29 @@ void defaults(int * states, int * messages, int nodes, int step)
 {
 	int i,j,k;
 
-	// Step 0 states and initial messages, step 1 messages_out. step -1 ignore everything (use init file)
-	if (step==0) {
+	// Step -1 states and initial messages, step 0 messages_out.
+
+	if (step==-1) {
 		for (i=0;i<nodes;i++) {
 			// States defaults
 			for (j=0 ; j < REGISTERS ; j++) {
 				*(states+i*REGISTERS+j)=0;
 			}
 		}
-		// State custom
-		*(states)=1;
-	}
 
-	for (i=0;i<nodes;i++) {
-		for (j=0;j<nodes;j++) {
-			// Messages defaults (both steps)
-			for (k=0 ; k < MESSTYPES ; k++) {
-				*(messages+(i*nodes+j)*MESSTYPES+k)=0;
+		for (i=0;i<nodes;i++) {
+			for (j=0;j<nodes;j++) {
+				// Messages defaults (both steps)
+				for (k=0 ; k < MESSTYPES ; k++) {
+					*(messages+(i*nodes+j)*MESSTYPES+k)=0;
+				}
 			}
 		}
+	} else {
+		// Messages default (step 0)
+		*(messages)=1;
+		*(states)=1;
 	}
-	// Messages default (step 0)
-	if (step==0) *(messages)=1;
 }
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -50,36 +51,50 @@ void lua_defaults(lua_State *L, int * states, int * messages, int nodes, int ste
 	int i,j,k;
 	int tempdefault;
 
-	for (j=0;j<registers;j++) {
-		lua_getglobal(L, "get_default_state");
-		lua_pushinteger(L,j);
+	if (step==-1) {
+		for (j=0;j<registers;j++) {
+			lua_getglobal(L, "get_default_state");
+			lua_pushinteger(L,j);
+			lua_call(L,1,1);
+			if (lua_isnil(L,-1)) {
+				fprintf (stderr,"Missing default.");
+				lua_close(L);
+				exit(1);
+			}
+			tempdefault=lua_tointeger(L, -1);
+	
+			for (i=0;i<nodes;i++) {
+				*(states+i*registers+j)=tempdefault;
+			}
+		}
+	
+		for (k=0;k<messtypes;k++) {
+			lua_getglobal(L, "get_default_mess");
+			lua_pushinteger(L,k);
+			lua_call(L,1,1);
+			if (lua_isnil(L,-1)) {
+				fprintf (stderr,"Missing default.");
+				lua_close(L);
+				exit(1);
+			}
+			tempdefault=lua_tointeger(L, -1);
+	
+			for (i=0;i<nodes;i++) {
+				for (j=0;j<nodes;j++) {
+					*(messages+(i*nodes+j)*messtypes+k)=tempdefault;
+				}
+			}
+		}
+	} else {
+		// Get the number of node modified in the temporal step 
+		lua_getglobal(L, "get_boundary_num");
+		lua_pushinteger(L,step);
 		lua_call(L,1,1);
-		if (lua_isnil(L,-1)) {
-			fprintf (stderr,"Missing default.");
-			lua_close(L);
-			exit(1);
-		}
-		tempdefault=lua_tointeger(L, -1);
-
-		for (i=0;i<nodes;i++) {
-			*(states+i*registers+j)=tempdefault;
-		}
-	}
-
-	for (k=0;k<messtypes;k++) {
-		lua_getglobal(L, "get_default_mess");
-		lua_pushinteger(L,k);
-		lua_call(L,1,1);
-		if (lua_isnil(L,-1)) {
-			fprintf (stderr,"Missing default.");
-			lua_close(L);
-			exit(1);
-		}
-		tempdefault=lua_tointeger(L, -1);
-
-		for (i=0;i<nodes;i++) {
-			for (j=0;j<nodes;j++) {
-				*(messages+(i*nodes+j)*messtypes+k)=tempdefault;
+		if (!lua_isnil(L,-1)) {
+			tempdefault=lua_tointeger(L, -1);
+			printf("%d\n",tempdefault);
+			for (k=0;k<tempdefault;k++) {
+				// Getting the node name that has modification
 			}
 		}
 	}
@@ -113,7 +128,7 @@ void shutdown(GVC_t* gvc, graph_t * dsgraph, lua_State *L)
 char * id_to_name(lua_State *L,int opmode,int regotmess, int lev1, int lev2)
 {
 	// The resolution does not work in opmode 1
-	if (opmode == 1) {
+	if ((opmode == 1)||(L== NULL)) {
 		return NULL;
 	}
 
@@ -186,7 +201,7 @@ int main( int argc, char* argv[] )
 	Agedge_t * iedge;
 
 	// Lua interpreter
-	lua_State *L;
+	lua_State *L = NULL;
 
 	// File counter
 	FILE *fp;
@@ -561,13 +576,15 @@ int main( int argc, char* argv[] )
 	// Write our data set into the input array in device memory
 	err = clEnqueueWriteBuffer(queue, d_links, CL_TRUE, 0, nodes*nodes*bytes, links, 0, NULL, NULL);
 
-	// Set the default according to the operation mode
+	// Set the default according to the operation mode (the default is the temporal step -1 plus superposition of step 0) 
 	if (opmode==1) {
+		defaults(states,messages,nodes,-1);
 		defaults(states,messages,nodes,0);
 	} else {
+		lua_defaults(L,states,messages,nodes,-1,registers,messtypes);
 		lua_defaults(L,states,messages,nodes,0,registers,messtypes);
-
 	}
+
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
 	err |= clEnqueueWriteBuffer(queue, d_messages_in, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
 
@@ -593,7 +610,7 @@ int main( int argc, char* argv[] )
 			for (j=0 ; j < nodes ; j++) {
 				printf("   Node %s -> %s messages: ",(*(ithnode+i))->name,(*(ithnode+j))->name);
 				for (k=0 ; k < messtypes ; k++) {
-					tempstr=id_to_name(L,0,1,k,*(messages+(i*nodes+j)*messtypes+k));
+					tempstr=id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
 					if (tempstr != NULL) {
 						printf("%s ",tempstr);
 						free(tempstr);
@@ -608,8 +625,13 @@ int main( int argc, char* argv[] )
 		printf("\n");
 	}
 
-	// The out_messages are set to default (with no exception)
-	if (opmode==1) defaults(states,messages,nodes,1);
+	// The out_messages are set to default
+	if (opmode==1) {
+		defaults(states,messages,nodes,-1);
+	} else {
+		lua_defaults(L,states,messages,nodes,-1,registers,messtypes);
+	}
+
 	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
 
 	if (err != CL_SUCCESS)

@@ -369,3 +369,26 @@ function get_default_mess(reg)
 	end
 	return nil
 end
+
+-- Get the number of boundary condition elements or nil
+function get_boundary_num(step)
+	if boundary[step] == nil then
+		return nil
+	end
+	tta=boundary[step]
+	num=0
+	for k,v in pairs(tta) do num=num+1 end
+	return num
+end
+
+-- Get the name of the node at index bindex and temporal step step
+function get_boundary_el_name(step,bindex)
+end
+
+-- Get the state of the register reg of the node with the given name and temporal step step
+function get_boundary_el_state(step,name,reg)
+end
+
+-- Get the state the spontaneiys impulse reg of the node with the given name and temporal step step
+function get_boundary_el_mess(step,name,reg)
+end

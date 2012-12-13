@@ -2,7 +2,10 @@
 --dofile '/home/mirko/Projects/dssim/transformer.lua'
 
 defaults = { "STATE_IDLE", "IMPULSE_NO" , "BROADCAST_NO"}
-boundary = { A = {"STATE_INIT","IMPULSE_YES"} }
+boundary = {}
+boundary[0] = { A = {"STATE_INIT","IMPULSE_YES"} }
+
+ending = {"STATE_DONE", "IMPULSE_NO" , "BROADCAST_NO" }
 
 --print(get_default_state(0))
-
+--print(get_boundary_num(1))
