@@ -1,5 +1,60 @@
 #!/bin/bash
-rm outfile*png
-./dssim $@
-mencoder "mf://*.png" -mf fps=1 -o videoout.avi -ovc lavc -lavcopts vcodec=msmpeg4v2:vbitrate=800
-mplayer -fs videoout.avi
+
+#ARGS=$(getopt -o i:g:p:f: -n "dssim_video" -- "$@");
+#
+##Bad arguments
+#if [ $? -ne 0 ];
+#then
+#	echo "Bad argument"
+#	exit 1
+#fi
+#
+#eval set -- "$ARGS";
+#
+#while true; do
+#	case "$1" in
+#	  -i)
+#	    shift;
+#	    if [ -n "$1" ]; then
+#	      echo "-a used: $1";
+#	      shift;
+#	    fi
+#	    ;;
+#	  -g)
+#	    shift;
+#	    if [ -n "$1" ]; then
+#	      echo "-b used: $1";
+#	      shift;
+#	    fi
+#	    ;;
+#	  -p)
+#	    shift;
+#	    echo "-c used";
+#	    ;;
+#	  -f)
+#	    shift;
+#	    echo "-c used";
+#	    ;;
+#	  --)
+#	    shift;
+#	    break;
+#	    ;;
+#	esac
+#done
+
+
+if [[ a"$@" == a"-h" ]]
+then
+	./dssim -h | sed "s/dssim/dssim_video/g"
+	echo -e "\t\t-f val   - Set the frame per second value (default 1)"	
+else
+	./dssim $@  > /dev/null 2>&1
+	if [ -e outfile0001.png ]
+	then
+		FILENAME=$RANDOM""videoout.avi
+		mencoder "mf://*.png" -mf fps=1 -o $FILENAME -ovc lavc -lavcopts vcodec=msmpeg4v2:vbitrate=800 > /dev/null 2>&1
+		mplayer -fs $FILENAME  > /dev/null 2>&1
+		rm -f outfile*png $FILENAME  > /dev/null 2>&1
+	fi
+fi
+

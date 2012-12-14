@@ -215,10 +215,20 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i initial_condition_file [-v]\n");
-	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-v][-o]\n");
+	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
+	printf("\tOptions:\n");
+	printf("\t\t-h       - This help\n");
+	printf("\t\t-v       - Be verbose\n");
+	printf("\t\t-V       - Print program version and exit\n");
+	printf("\t\t-k file  - Select the OpenCL custom kernel file (experts only)\n");
+	printf("\t\t-p file  - Select the protocol file\n");
+	printf("\t\t-g file  - Select the graph description file (graphviz dot file)\n");
+	printf("\t\t-i file  - Select the initialization file\n");
+	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
 	fflush(stdout);
+
 }
 
 // Shutdown on errors
@@ -375,8 +385,12 @@ int main( int argc, char* argv[] )
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "vVk:p:g:i:o")) != -1)
+	while ((c = getopt (argc, argv, "hvVk:p:g:i:o")) != -1)
 	switch (c) {
+		case 'h':
+			usage();
+			exit(0);
+			break;
 		case 'v':
 			verbose=1;
 			break;
@@ -402,7 +416,7 @@ int main( int argc, char* argv[] )
                 case '?':
                         if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
                         {
-                                fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+                                fprintf (stderr, "Option -%c requires an argument.\n\n", optopt);
 				usage();
                                 exit(1);
                         }
@@ -410,13 +424,13 @@ int main( int argc, char* argv[] )
                         {
                                 if (isprint (optopt))
                                 {
-                                        fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+                                        fprintf (stderr, "Unknown option `-%c'.\n\n", optopt);
 					usage();
                                         exit(1);
                                 }
                                 else
                                 {
-                                        fprintf (stderr,"Unknown option character `\\x%x'.\n",optopt);
+                                        fprintf (stderr,"Unknown option character `\\x%x'.\n\n",optopt);
 					usage();
                                         exit(1);
                                 }
@@ -427,7 +441,7 @@ int main( int argc, char* argv[] )
 
 	// Exits on wrong options
 	for (index = optind; index < argc; index++) {
-		fprintf (stderr,"Non-option argument %s\n", argv[index]);
+		fprintf (stderr,"Non-option argument %s\n\n", argv[index]);
 		usage();
 		exit(1);
 	}
@@ -503,21 +517,25 @@ int main( int argc, char* argv[] )
 		}
 
 	} else {
-		fprintf (stderr,"No graph given, you need to use the -g option.\n");
+		fprintf (stderr,"No graph given, you need to use the -g option.\n\n");
+		usage();
 		exit(1);
 	}
 
 	// Check the operation mode
 	if ((protocol_file==NULL)&&(kernel_file==NULL)) {
-		fprintf (stderr,"Either a protocol file or a custom opencl kernel is required.");
+		fprintf (stderr,"Either a protocol file or a custom opencl kernel is required.\n\n");
+		usage();
 		exit(1);
 	} else if ((protocol_file!=NULL)&&(kernel_file!=NULL)) {
-		fprintf (stderr,"A protocol file or a custom opencl kernel is required (not both).");
+		fprintf (stderr,"A protocol file or a custom opencl kernel is required (not both).\n\n");
+		usage();
 		exit(1);
 	} else if ((protocol_file!=NULL)&&(kernel_file==NULL)) {
 
 		if (initial_file == NULL) {
-			fprintf (stderr,"An intial file is needed.");
+			fprintf (stderr,"An intial file is needed.\n\n");
+			usage();
 			exit(1);
 		}
 

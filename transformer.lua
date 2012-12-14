@@ -332,10 +332,12 @@ function get_default_state(reg)
 
 	regi=0
 	for k,v in pairs(registers) do
-		for k1,v1 in ipairs(v) do
-			for k2,v2 in ipairs(defaults) do
-				if v2==k..'_'..v1 then
-					return k1-1
+		if regi==reg then
+			for k1,v1 in ipairs(v) do
+				for k2,v2 in ipairs(defaults) do
+					if v2==k..'_'..v1 then
+						return k1-1
+					end
 				end
 			end		
 		end
@@ -355,13 +357,15 @@ function get_default_mess(reg)
 
 	regi=0
 	for k,v in pairs(messtypes) do
-		for k1,v1 in ipairs(v) do
-			for k2,v2 in ipairs(defaults) do
-				if v2==k..'_NO' then
-					return 0
-				end
-				if v2==k..'_'..v1 then
-					return k1
+		if regi==reg then
+			for k1,v1 in ipairs(v) do
+				for k2,v2 in ipairs(defaults) do
+					if v2==k..'_NO' then
+						return 0
+					end
+					if v2==k..'_'..v1 then
+						return k1
+					end
 				end
 			end		
 		end
@@ -381,10 +385,12 @@ function get_ending_state(reg)
 
 	regi=0
 	for k,v in pairs(registers) do
-		for k1,v1 in ipairs(v) do
-			for k2,v2 in ipairs(ending) do
-				if v2==k..'_'..v1 then
-					return k1-1
+		if regi==reg then
+			for k1,v1 in ipairs(v) do
+				for k2,v2 in ipairs(ending) do
+					if v2==k..'_'..v1 then
+						return k1-1
+					end
 				end
 			end		
 		end
@@ -404,13 +410,15 @@ function get_ending_mess(reg)
 
 	regi=0
 	for k,v in pairs(messtypes) do
-		for k1,v1 in ipairs(v) do
-			for k2,v2 in ipairs(ending) do
-				if v2==k..'_NO' then
-					return 0
-				end
-				if v2==k..'_'..v1 then
-					return k1
+		if regi==reg then
+			for k1,v1 in ipairs(v) do
+				for k2,v2 in ipairs(ending) do
+					if v2==k..'_NO' then
+						return 0
+					end
+					if v2==k..'_'..v1 then
+						return k1
+					end
 				end
 			end		
 		end
@@ -454,10 +462,12 @@ function get_boundary_el_state(step,name,reg)
 	tta=boundary[step]
 	regi=0
 	for k,v in pairs(registers) do
-		for k1,v1 in ipairs(v) do
-			for k2,v2 in ipairs(tta[name]) do
-				if v2==k..'_'..v1 then
-					return k1-1
+		if regi==reg then
+			for k1,v1 in ipairs(v) do
+				for k2,v2 in ipairs(tta[name]) do
+					if v2==k..'_'..v1 then
+						return k1-1
+					end
 				end
 			end		
 		end
