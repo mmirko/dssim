@@ -649,7 +649,7 @@ int main( int argc, char* argv[] )
 	cl_mem d_messages_out;
 	cl_mem tempm;
  
-	cl_platform_id cpPlatform;        // OpenCL platform
+	cl_platform_id cpPlatform;       // OpenCL platform
 	cl_device_id device_id;           // device ID
 	cl_context context;               // context
 	cl_command_queue queue;           // command queue
@@ -666,16 +666,37 @@ int main( int argc, char* argv[] )
 	// Number of total work items - localSize must be devisor
 	globalSize = ceil(nodes/(int)localSize)*localSize;
  
+
+
+	cl_platform_id * platform_ids;
+	cl_uint ret_num_devices;
+	cl_uint ret_num_platforms;
+
+	platform_ids=(cl_platform_id *) malloc(2*sizeof(cl_platform_id));
+	err = clGetPlatformIDs(2, platform_ids, &ret_num_platforms);
+
+	printf("Found %d platforms\n", ret_num_platforms);
+
+	for (i=0 ; i < ret_num_platforms; i++)
+	{
+		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_GPU, 1, &device_id, &ret_num_devices);
+		if (ret_num_devices==1) break;
+	}
+
+
+
+
+
 	// Bind to platform
-	err = clGetPlatformIDs(1, &cpPlatform, NULL);
+//	err = clGetPlatformIDs(2, cpPlatforms, NULL);
  
 	// Get ID for the device
-	err = clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, 1, &device_id, NULL);
-	if (err != CL_SUCCESS)
-	{
-		fprintf(stderr, "Failed to create a device group!\n");
-		return EXIT_FAILURE;
-	}
+//	err = clGetDeviceIDs(*(cpPlatforms), CL_DEVICE_TYPE_CPU, 1, &device_id, NULL);
+//	if (err != CL_SUCCESS)
+//	{
+//		fprintf(stderr, "Failed to create a device group!\n");
+//		return EXIT_FAILURE;
+//	}
  
 	// Create a context 
 	context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);

@@ -27,4 +27,4 @@ transformer.c : lua_embedder.py transformer.lua
 	./lua_embedder.py > transformer.c
 
 dssim: dssim.c transformer.c
-	gcc -I/usr/local/cuda/include -lOpenCL -o dssim dssim.c -lm -lgvc -llua
+	gcc -lOpenCL -o dssim dssim.c -lm -lgvc -llua
