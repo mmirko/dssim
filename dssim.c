@@ -51,6 +51,7 @@ void ending(int * ending_states, int * ending_messages, int registers, int messt
 	*(ending_messages+1)=0;
 	*(ending_states)=2;
 }
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes)
@@ -187,6 +188,36 @@ void lua_ending(lua_State *L, int * ending_states, int * ending_messages, int re
 		*(ending_messages+k)=tempdefault;
 	}
 }
+
+// The node styling function
+void lua_style_node(Agnode_t **  ithnode, int i, int * states, int nodes, int registers)
+{
+	if (*(states+i)==2) {
+		agsafeset(*(ithnode+i), "color", "red", "");
+	} else {
+		agsafeset(*(ithnode+i), "color", "black", "");
+	}
+}
+
+// The edge styling function
+void lua_style_edge(Agraph_t * dsgraph, Agnode_t ** ithnode, int i, int j, int * messages, int nodes, int messtypes)
+{
+	int k;
+	Agedge_t * iedge;
+	iedge=agfindedge(dsgraph,*(ithnode+i),*(ithnode+j));
+	k=0;
+	if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
+		agsafeset(iedge, "color", "black","");
+		agsafeset(iedge, "arrowhead", "normal","");
+		agsafeset(iedge, "arrowtail", "normal","");
+	} else {
+		agsafeset(iedge, "color", "grey80","");
+		agsafeset(iedge, "arrowhead", "none","");
+		agsafeset(iedge, "arrowtail", "none","");
+	}
+						
+}
+
 
 int check_end(int * states, int * messages, int nodes, int * ending_states, int * ending_messages, int registers, int messtypes)
 {
@@ -855,10 +886,12 @@ int main( int argc, char* argv[] )
 		if (pngout) {
 
 			for (i=0 ; i < nodes ; i++) {
-				if (*(states+i)==2) {
-					agsafeset(*(ithnode+i), "color", "red", "");
-				} else {
-					agsafeset(*(ithnode+i), "color", "black", "");
+				lua_style_node(ithnode, i, states, nodes,registers);
+
+				for (j=0 ; j < nodes ; j++) {
+					if (*(links+i*nodes+j)!=0) {
+						lua_style_edge(dsgraph,ithnode,i,j,messages,nodes,messtypes);
+					}
 				}
 			}
 

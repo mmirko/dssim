@@ -4,3 +4,6 @@ boundary = {}
 boundary[0] = { N1 = {"STATE_INIT","IMPULSE_YES"} }
 
 ending = {"STATE_DONE", "IMPULSE_NO" , "BROADCAST_NO" }
+
+registers_styles = { STATE_DONE = { color = "red" } }
+messages_styles = { BROADCAST_SENT = { arrowhead = "normal", arrowtail = "normal" } }
