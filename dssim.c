@@ -190,17 +190,29 @@ void lua_ending(lua_State *L, int * ending_states, int * ending_messages, int re
 }
 
 // The node styling function
-void lua_style_node(Agnode_t **  ithnode, int i, int * states, int nodes, int registers)
+void lua_style_node(lua_State *L, Agnode_t **  ithnode, int i, int * states, int nodes, int registers)
 {
-	if (*(states+i)==2) {
-		agsafeset(*(ithnode+i), "color", "red", "");
-	} else {
-		agsafeset(*(ithnode+i), "color", "black", "");
+	int tempdefault;
+	lua_getglobal(L, "get_table_num");
+	lua_pushstring(L,"registers_styles");
+	lua_call(L,1,1);
+	if (lua_isnil(L,-1)) {
+		fprintf (stderr,"Missing ending message.");
+		lua_close(L);
+		exit(1);
 	}
+	tempdefault=lua_tointeger(L, -1);
+	printf("%d\n",tempdefault);
+	exit(0);
+//	if (*(states+i)==2) {
+//		agsafeset(*(ithnode+i), "color", "red", "");
+//	} else {
+//		agsafeset(*(ithnode+i), "color", "black", "");
+//	}
 }
 
 // The edge styling function
-void lua_style_edge(Agraph_t * dsgraph, Agnode_t ** ithnode, int i, int j, int * messages, int nodes, int messtypes)
+void lua_style_edge(lua_State *L, Agraph_t * dsgraph, Agnode_t ** ithnode, int i, int j, int * messages, int nodes, int messtypes)
 {
 	int k;
 	Agedge_t * iedge;
@@ -886,11 +898,11 @@ int main( int argc, char* argv[] )
 		if (pngout) {
 
 			for (i=0 ; i < nodes ; i++) {
-				lua_style_node(ithnode, i, states, nodes,registers);
+				lua_style_node(L,ithnode, i, states, nodes,registers);
 
 				for (j=0 ; j < nodes ; j++) {
 					if (*(links+i*nodes+j)!=0) {
-						lua_style_edge(dsgraph,ithnode,i,j,messages,nodes,messtypes);
+						lua_style_edge(L,dsgraph,ithnode,i,j,messages,nodes,messtypes);
 					}
 				}
 			}

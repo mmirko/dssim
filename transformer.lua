@@ -501,3 +501,9 @@ function get_boundary_el_mess(step,name,reg)
 	end
 	return nil
 end
+
+-- Generic get table lenght
+function get_table_num (tabs)
+	t=loadstring('table.getn('..tabs..')')
+	return t()
+end
