@@ -54,6 +54,19 @@ void ending(int * ending_states, int * ending_messages, int registers, int messt
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+struct style_list {
+	char * attr;
+	char * value;
+	struct style_list * next;
+};
+
+struct style_entry {
+	char * name;
+	struct style_list * top;
+	struct style_entry * next;
+};
+
+
 void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes)
 {
 	int i,j,k;
@@ -70,6 +83,7 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 				exit(1);
 			}
 			tempdefault=lua_tointeger(L, -1);
+			lua_pop(L,1);
 	
 			for (i=0;i<nodes;i++) {
 				*(states+i*registers+j)=tempdefault;
@@ -86,6 +100,7 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 				exit(1);
 			}
 			tempdefault=lua_tointeger(L, -1);
+			lua_pop(L,1);
 	
 			for (i=0;i<nodes;i++) {
 				for (j=0;j<nodes;j++) {
@@ -109,10 +124,11 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 		lua_call(L,1,1);
 		if (!lua_isnil(L,-1)) {
 			bnum=lua_tointeger(L, -1);
+			lua_pop(L,1);
 		} else {
+			lua_pop(L,1);
 			return;
 		}
-
 		for (l=0;l<bnum;l++) {
 			// Getting the node name that has modification
 			lua_getglobal(L, "get_boundary_el_name");
@@ -133,6 +149,7 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 						tempdefault=lua_tointeger(L, -1);
 						*(states+bid*registers+j)=tempdefault;
 					}
+					lua_pop(L,1);
 				}
 
 				for (k=0;k<messtypes;k++) {
@@ -145,9 +162,11 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 						tempdefault=lua_tointeger(L, -1);
 						*(messages+(bid*nodes+bid)*messtypes+k)=tempdefault;
 					}
+					lua_pop(L,1);
 				}
-
+				lua_pop(L,1);
 			} else {
+				lua_pop(L,1);
 				return;
 			}
 
@@ -170,6 +189,7 @@ void lua_ending(lua_State *L, int * ending_states, int * ending_messages, int re
 			exit(1);
 		}
 		tempdefault=lua_tointeger(L, -1);
+		lua_pop(L,1);
 
 		*(ending_states+j)=tempdefault;
 	}
@@ -184,48 +204,214 @@ void lua_ending(lua_State *L, int * ending_states, int * ending_messages, int re
 			exit(1);
 		}
 		tempdefault=lua_tointeger(L, -1);
+		lua_pop(L,1);
 
 		*(ending_messages+k)=tempdefault;
 	}
 }
 
-// The node styling function
-void lua_style_node(lua_State *L, Agnode_t **  ithnode, int i, int * states, int nodes, int registers)
+// Id to name resolution (in case of custom opmode the resolution do not work)
+char * id_to_name(lua_State *L,int opmode,int regotmess, int lev1, int lev2)
 {
-	int tempdefault;
-	lua_getglobal(L, "get_table_num");
-	lua_pushstring(L,"registers_styles");
-	lua_call(L,1,1);
+	char * result;
+
+	// The resolution does not work in opmode 1
+	if ((opmode == 1)||(L== NULL)) {
+		return NULL;
+	}
+
+	lua_getglobal(L, "id_to_name");
+
+	// 0 is a register
+	if (regotmess==0) {
+		lua_pushstring(L,"register");	
+	} else {
+		lua_pushstring(L,"mess");	
+	}
+
+	lua_pushinteger(L,lev1);
+
+	// lev2 == -1 means to resolve the name of the level1
+	if (lev2 == -1 ) {
+		lua_pushnil(L);
+	} else {
+		lua_pushinteger(L,lev2);
+	}
+
+	lua_call(L,3,1);
 	if (lua_isnil(L,-1)) {
-		fprintf (stderr,"Missing ending message.");
+		fprintf (stderr,"Wrong name resolution.");
 		lua_close(L);
 		exit(1);
 	}
-	tempdefault=lua_tointeger(L, -1);
-	printf("%d\n",tempdefault);
-	exit(0);
-//	if (*(states+i)==2) {
-//		agsafeset(*(ithnode+i), "color", "red", "");
-//	} else {
-//		agsafeset(*(ithnode+i), "color", "black", "");
-//	}
+
+	result = (char *) strdup(lua_tostring(L,-1));
+	lua_pop(L,1);
+
+	return result;
+}
+
+
+struct style_entry * lua_styles(lua_State *L)
+{
+	struct style_entry * styles=NULL;
+	struct style_entry * istyles;
+	struct style_entry * jstyles;
+	struct style_list * ilist;
+	struct style_list * jlist;
+
+
+	lua_getglobal(L, "styles");
+	if (!lua_isnil(L,-1)) {
+		lua_pushnil(L);  /* first key */
+		while (lua_next(L, -2) != 0) {
+
+			istyles=(struct style_entry *) malloc(sizeof(struct style_entry));
+			istyles->name=strdup(lua_tostring(L, -2));
+			istyles->next=NULL;
+			istyles->top=NULL;
+
+			// Registering the key - value pairs for the given register or message
+			lua_pushvalue(L,-1);
+			lua_pushnil(L);
+			while (lua_next(L, -2) != 0) {
+
+				ilist=(struct style_list *) malloc(sizeof(struct style_list));
+				ilist->attr=strdup(lua_tostring(L, -2));
+				ilist->value=strdup(lua_tostring(L, -1));
+				ilist->next=NULL;
+
+				if (istyles->top==NULL) {
+					istyles->top=ilist;
+				} else {
+					jlist->next=ilist;
+				}
+
+				jlist=ilist;
+
+				lua_pop(L, 1);
+			}
+			lua_pop(L, 1);
+
+			if (styles==NULL) {
+				styles=istyles;
+			} else {
+				jstyles->next=istyles;
+			}
+
+			jstyles=istyles;
+
+			/* removes 'value'; keeps 'key' for next iteration */
+			lua_pop(L, 1);
+		}
+	}
+
+	lua_pop(L,1);
+	return styles;
+}
+
+void styles_print(struct style_entry * styles)
+{
+	struct style_entry * istyles;
+	struct style_list * ilist;
+
+	for (istyles=styles;istyles!=NULL;istyles=istyles->next) {
+		printf ("   %s\n",istyles->name);
+		for (ilist=istyles->top;ilist!=NULL;ilist=ilist->next) {
+			printf ("      %s -> %s\n",ilist->attr,ilist->value);
+		}
+	}
+}
+
+
+// The node styling function
+void style_node(lua_State *L,int opmode, struct style_entry * styles, Agnode_t **  ithnode, int i, int * states, int nodes, int registers)
+{
+	int j;
+	int hit;
+	char * tempstr;
+	struct style_entry * istyles;
+	struct style_list * ilist;
+
+	for (j=0, hit=0; j < registers ; j++) {
+		tempstr=(char *) id_to_name(L,opmode,0,j,*(states+i*registers+j));
+
+		for (istyles=styles;istyles!=NULL;istyles=istyles->next) {
+			if (!strcmp(tempstr,istyles->name)) {
+				for (ilist=istyles->top;ilist!=NULL;ilist=ilist->next) {
+					agsafeset(*(ithnode+i), ilist->attr, ilist->value, "");
+				}
+				hit=1;
+			}
+		}
+
+		free(tempstr);
+	}
+
+	if (hit==0) {
+		for (j=0 ; j < registers ; j++) {
+			for (istyles=styles,hit=0;istyles!=NULL;istyles=istyles->next) {
+				if (!strcmp("registers_default",istyles->name)) {
+					for (ilist=istyles->top;ilist!=NULL;ilist=ilist->next) {
+						agsafeset(*(ithnode+i), ilist->attr, ilist->value, "");
+					}
+				}
+			}
+		}
+	}
 }
 
 // The edge styling function
-void lua_style_edge(lua_State *L, Agraph_t * dsgraph, Agnode_t ** ithnode, int i, int j, int * messages, int nodes, int messtypes)
+void style_edge(lua_State *L,int opmode, struct style_entry * styles, Agraph_t * dsgraph, Agnode_t ** ithnode, int i, int j, int * messages, int nodes, int messtypes)
 {
 	int k;
+	int hit;
+	char * tempstr;
 	Agedge_t * iedge;
+	Agedge_t * iedge2;
+	struct style_entry * istyles;
+	struct style_list * ilist;
+
 	iedge=agfindedge(dsgraph,*(ithnode+i),*(ithnode+j));
-	k=0;
-	if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
-		agsafeset(iedge, "color", "black","");
-		agsafeset(iedge, "arrowhead", "normal","");
-		agsafeset(iedge, "arrowtail", "normal","");
-	} else {
-		agsafeset(iedge, "color", "grey80","");
-		agsafeset(iedge, "arrowhead", "none","");
-		agsafeset(iedge, "arrowtail", "none","");
+
+//	if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
+//		agsafeset(iedge, "color", "black","");
+//		agsafeset(iedge, "arrowhead", "normal","");
+//		agsafeset(iedge, "arrowtail", "normal","");
+//		agsafeset(iedge, "label", "brd","");
+//	} else {
+//		agsafeset(iedge, "color", "grey80","");
+//		agsafeset(iedge, "arrowhead", "none","");
+//		agsafeset(iedge, "arrowtail", "none","");
+//		agsafeset(iedge, "label", "","");
+//	}
+
+	for (k=0, hit=0; k < messtypes ; k++) {
+
+		tempstr=(char *) id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
+
+		for (istyles=styles;istyles!=NULL;istyles=istyles->next) {
+			if (!strcmp(tempstr,istyles->name)) {
+				for (ilist=istyles->top;ilist!=NULL;ilist=ilist->next) {
+					agsafeset(iedge, ilist->attr, ilist->value, "");
+				}
+				hit=1;
+			}
+		}
+
+		free(tempstr);
+	}
+
+	if (hit==0) {
+		for (k=0 ; k < messtypes ; k++) {
+			for (istyles=styles,hit=0;istyles!=NULL;istyles=istyles->next) {
+				if (!strcmp("messages_default",istyles->name)) {
+					for (ilist=istyles->top;ilist!=NULL;ilist=ilist->next) {
+						agsafeset(iedge, ilist->attr, ilist->value, "");
+					}
+				}
+			}
+		}
 	}
 						
 }
@@ -283,42 +469,6 @@ void shutdown(GVC_t* gvc, graph_t * dsgraph, lua_State *L)
 	exit(1);
 }
 
-// Id to name resolution (in case of custom opmode the resolution do not work)
-char * id_to_name(lua_State *L,int opmode,int regotmess, int lev1, int lev2)
-{
-	// The resolution does not work in opmode 1
-	if ((opmode == 1)||(L== NULL)) {
-		return NULL;
-	}
-
-	lua_getglobal(L, "id_to_name");
-
-	// 0 is a register
-	if (regotmess==0) {
-		lua_pushstring(L,"register");	
-	} else {
-		lua_pushstring(L,"mess");	
-	}
-
-	lua_pushinteger(L,lev1);
-
-	// lev2 == -1 means to resolve the name of the level1
-	if (lev2 == -1 ) {
-		lua_pushnil(L);
-	} else {
-		lua_pushinteger(L,lev2);
-	}
-
-	lua_call(L,3,1);
-	if (lua_isnil(L,-1)) {
-		fprintf (stderr,"Wrong name resolution.");
-		lua_close(L);
-		exit(1);
-	}
-
-	return (char *) strdup(lua_tostring(L,-1));
-}
-
 // Search the id of the node given its host address
 int search_node_id(Agnode_t ** ithnode, Agnode_t * inode,int nodes)
 {
@@ -371,6 +521,9 @@ int main( int argc, char* argv[] )
 
 	Agnode_t * inode;
 	Agedge_t * iedge;
+
+	// Styles
+	struct style_entry * styles;
 
 	// Lua interpreter
 	lua_State *L = NULL;
@@ -606,17 +759,18 @@ int main( int argc, char* argv[] )
 		lua_getglobal(L, "num_registers");
 		lua_call(L,0,1);
 		registers=lua_tointeger(L, -1);
+		lua_pop(L,1);
 
 		if (registers==0) {
 			fprintf (stderr,"The protocol seems to have 0 registers, this cannot be right.");
-			lua_close(L);
-			exit(1);
+			shutdown(gvc,dsgraph,L);
 		}
 
 		// Find out the number of messages types
 		lua_getglobal(L, "num_messtypes");
 		lua_call(L,0,1);
 		messtypes=lua_tointeger(L, -1);
+		lua_pop(L,1);
 
 		if (messtypes==0) {
 			fprintf (stderr,"The protocol seems to have 0 messtypes, this cannot be right.");
@@ -631,7 +785,15 @@ int main( int argc, char* argv[] )
 		ending_states = (int*)malloc(registers*bytes);
 		ending_messages = (int*)malloc(messtypes*bytes);
 
+		// Populate the ending conditions
 		lua_ending(L,ending_states,ending_messages,registers,messtypes);	
+
+		// Populate the styles
+		styles=lua_styles(L);
+		if (verbose) {
+			printf("Loading graphical styles:\n");
+			styles_print(styles);
+		}
 
 		// Find out the number of messages types
 		lua_getglobal(L, "transformer");
@@ -639,6 +801,7 @@ int main( int argc, char* argv[] )
 		lua_call(L,1,1);
 
 		kernelSource=strdup(lua_tostring(L, -1));
+		lua_pop(L,1);
 		entity=protocol_file;
 
 
@@ -898,11 +1061,11 @@ int main( int argc, char* argv[] )
 		if (pngout) {
 
 			for (i=0 ; i < nodes ; i++) {
-				lua_style_node(L,ithnode, i, states, nodes,registers);
+				style_node(L,opmode, styles, ithnode, i, states, nodes,registers);
 
 				for (j=0 ; j < nodes ; j++) {
 					if (*(links+i*nodes+j)!=0) {
-						lua_style_edge(L,dsgraph,ithnode,i,j,messages,nodes,messtypes);
+						style_edge(L,opmode, styles, dsgraph,ithnode,i,j,messages,nodes,messtypes);
 					}
 				}
 			}
@@ -988,6 +1151,8 @@ int main( int argc, char* argv[] )
 	// Release graph(viz) resources
 	agclose(dsgraph);
 	gvFreeContext(gvc);
+
+	if (verbose) printf("\nLua stack size %d\n\n",lua_gettop(L));
 
 	// Release LUA interpreter
 	lua_close(L);

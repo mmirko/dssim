@@ -5,8 +5,4 @@ boundary[0] = { N1 = {"STATE_INIT","IMPULSE_YES"} }
 
 ending = {"STATE_DONE", "IMPULSE_NO" , "BROADCAST_NO" }
 
-registers_styles = { STATE_DONE = { color = "red" } }
-registers_styles_default = { color = "gray10"  }
-
-messages_styles = { BROADCAST_SENT = { arrowhead = "normal", arrowtail = "normal" } }
-messages_styles_default = { arrowhead = "none", arrowtail = "none"  }
+styles = { STATE_DONE = { color = "green" } , registers_default = { color = "black" } , BROADCAST_SENT = { arrowhead = "normal", arrowtail = "normal", color = "black" }, messages_default =  { arrowhead = "none", arrowtail = "none", color = "grey80" } }
