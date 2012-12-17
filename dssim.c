@@ -66,7 +66,6 @@ struct style_entry {
 	struct style_entry * next;
 };
 
-
 void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes)
 {
 	int i,j,k;
@@ -207,6 +206,20 @@ void lua_ending(lua_State *L, int * ending_states, int * ending_messages, int re
 		lua_pop(L,1);
 
 		*(ending_messages+k)=tempdefault;
+	}
+}
+
+int lua_check_report(lua_State *L, char * report_name)
+{
+	lua_getglobal(L, "check_report");
+	lua_pushstring(L,report_name);
+	lua_call(L,1,1);
+	if (lua_isnil(L,-1)) {
+		lua_pop(L,1);
+		return 0;
+	} else {
+		lua_pop(L,1);
+		return 1;
 	}
 }
 
@@ -432,7 +445,7 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-v][-o]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-v][-o]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
 	printf("\tOptions:\n");
@@ -443,6 +456,7 @@ void usage()
 	printf("\t\t-p file  - Select the protocol file\n");
 	printf("\t\t-g file  - Select the graph description file (graphviz dot file)\n");
 	printf("\t\t-i file  - Select the initialization file\n");
+	printf("\t\t-s file  - Save the created kernel as file\n");
 	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
 	fflush(stdout);
 
@@ -502,6 +516,9 @@ int main( int argc, char* argv[] )
 
 	// The initial condition filename
 	char * initial_file = NULL;
+
+	// Save kernel file name
+	char * save_kernel = NULL;
 
 	// Graph(viz) managment
 	GVC_t* gvc;
@@ -569,7 +586,7 @@ int main( int argc, char* argv[] )
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvVk:p:g:i:o")) != -1)
+	while ((c = getopt (argc, argv, "hvVk:p:g:i:s:o")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -593,6 +610,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 'i':
 			initial_file=strdup(optarg);
+			break;
+		case 's':
+			save_kernel=strdup(optarg);
 			break;
 		case 'o':
 			pngout=1;
@@ -831,8 +851,6 @@ int main( int argc, char* argv[] )
  	}
 
 
-	int doneck;
-
 	long int messcompl=0;
 
 
@@ -869,7 +887,7 @@ int main( int argc, char* argv[] )
 	platform_ids=(cl_platform_id *) malloc(2*sizeof(cl_platform_id));
 	err = clGetPlatformIDs(2, platform_ids, &ret_num_platforms);
 
-	printf("Found %d platforms\n", ret_num_platforms);
+	if (verbose) printf("Found %d platforms\n", ret_num_platforms);
 
 	for (i=0 ; i < ret_num_platforms; i++)
 	{
@@ -1105,10 +1123,6 @@ int main( int argc, char* argv[] )
 			}
 
 			if (verbose) printf("\n");
-			
-			if (*(states+i*registers+0)!=-1) {
-				doneck=0;
-			}
 		}
 		if (verbose) printf("\n");
 	
@@ -1119,10 +1133,8 @@ int main( int argc, char* argv[] )
 		d_messages_out=tempm;
 	}
 
-
-
-	printf("Time Complexity: %d\n",l);
-	printf("Message Complexity: %ld\n",messcompl);
+	if (lua_check_report(L, "TIME_COMPLEXITY") == 1) printf("Time Complexity: %d\n",l);
+	if (lua_check_report(L, "MESSAGE_COMPLEXITY") == 1) printf("Message Complexity: %ld\n",messcompl);
  
 	// release OpenCL resources
 	clReleaseMemObject(d_links);

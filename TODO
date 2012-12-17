@@ -3,8 +3,10 @@
 ############## TODO  list ##############
 ###
 #High	- Finalize the OpenCL platform and device managment
-#Med	- Write the report system
+#Med	- Finalize the report system
 #Med	- Connect to mel
+#Low	- Implement the kernel write
+#Low	- Complete the custom opmode
 #Low	- Write documentation
 ###
 ########### Future  features ###########

@@ -501,3 +501,15 @@ function get_boundary_el_mess(step,name,reg)
 	end
 	return nil
 end
+
+function check_report(report_name)
+	if type(report) ~= 'table' then
+		return nil
+	end
+	for _,value in pairs(report) do
+		if value==report_name then
+			return 1
+		end
+	end
+	return nil
+end
