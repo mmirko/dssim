@@ -1,0 +1,19 @@
+#!/usr/bin/perl
+###
+############## TODO  list ##############
+###
+#High	- Finalize the OpenCL platform and device managment
+#Med	- Write the report system
+#Med	- Connect to mel
+#Low	- Write documentation
+###
+########### Future  features ###########
+###
+#Future	- 
+###
+########### Completed  tasks ###########
+###
+###
+########## And now the script ##########
+###
+open(MYSELF, "TODO"); while (<MYSELF>) { push(@lines,$_) if ($_!~/^###/); } close(MYSELF);open(MYSELF, ">TODO"); print MYSELF '#!/usr/bin/perl'."\n###\n############## TODO  list ##############\n###\n";foreach $i(@lines) {print MYSELF $i if($i =~ /^#High/);}foreach $i(@lines) {print MYSELF $i if($i =~ /^#Med/);}foreach $i(@lines) {print MYSELF $i if($i =~ /^#Low/);}print MYSELF "###\n########### Future  features ###########\n###\n";foreach $i(@lines) {print MYSELF $i if($i =~ /^#Future/);}print MYSELF "###\n########### Completed  tasks ###########\n###\n";foreach $i(@lines) {print MYSELF $i if($i =~ /^#DONE/);}print MYSELF "###\n########## And now the script ##########\n###\n";foreach $i(@lines) {print MYSELF $i if($i !~ /^#/);}

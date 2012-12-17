@@ -374,18 +374,6 @@ void style_edge(lua_State *L,int opmode, struct style_entry * styles, Agraph_t *
 
 	iedge=agfindedge(dsgraph,*(ithnode+i),*(ithnode+j));
 
-//	if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
-//		agsafeset(iedge, "color", "black","");
-//		agsafeset(iedge, "arrowhead", "normal","");
-//		agsafeset(iedge, "arrowtail", "normal","");
-//		agsafeset(iedge, "label", "brd","");
-//	} else {
-//		agsafeset(iedge, "color", "grey80","");
-//		agsafeset(iedge, "arrowhead", "none","");
-//		agsafeset(iedge, "arrowtail", "none","");
-//		agsafeset(iedge, "label", "","");
-//	}
-
 	for (k=0, hit=0; k < messtypes ; k++) {
 
 		tempstr=(char *) id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
@@ -1106,7 +1094,11 @@ int main( int argc, char* argv[] )
 			for (j=0 ; j < nodes ; j++) {
 				for (k=0 ; k < messtypes ; k++) {
 					if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
-						if (verbose) printf("( %s -> %s = %d ) ",(*(ithnode+i))->name,(*(ithnode+j))->name,*(messages+(i*nodes+j)*messtypes+k));
+						tempstr=id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
+						if (tempstr != NULL) {
+							if (verbose) printf("( %s -> %s ) ",tempstr,(*(ithnode+j))->name);
+							free(tempstr);
+						}
 						messcompl++;
 					}
 				}
@@ -1152,7 +1144,7 @@ int main( int argc, char* argv[] )
 	agclose(dsgraph);
 	gvFreeContext(gvc);
 
-	if (verbose) printf("\nLua stack size %d\n\n",lua_gettop(L));
+//	if (verbose) printf("\nLua stack size %d\n\n",lua_gettop(L));
 
 	// Release LUA interpreter
 	lua_close(L);
