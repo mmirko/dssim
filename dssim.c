@@ -445,7 +445,7 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-v][-o]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
 	printf("\tOptions:\n");
@@ -457,6 +457,7 @@ void usage()
 	printf("\t\t-g file  - Select the graph description file (graphviz dot file)\n");
 	printf("\t\t-i file  - Select the initialization file\n");
 	printf("\t\t-s file  - Save the created kernel as file\n");
+	printf("\t\t-t file  - Set the simulation time (default 10000)\n");
 	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
 	fflush(stdout);
 
@@ -580,13 +581,16 @@ int main( int argc, char* argv[] )
 	// Output png files: 0 no, 1 yes
 	int pngout=0;
 
+	// Simulation time
+	int sim_time=1000;
+
 	///// Program start
 
 	// Size, in bytes, of each vector
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvVk:p:g:i:s:o")) != -1)
+	while ((c = getopt (argc, argv, "hvVk:p:g:i:s:ot:")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -613,6 +617,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 's':
 			save_kernel=strdup(optarg);
+			break;
+		case 't':
+			sim_time=atoi(optarg);
 			break;
 		case 'o':
 			pngout=1;
@@ -1031,7 +1038,7 @@ int main( int argc, char* argv[] )
 	filen = malloc(50*sizeof(char));
 
 	// Main simulation cycle
-	for (l=1;l<60;l++) {
+	for (l=1;l<sim_time;l++) {
 
 		if (verbose) printf(" - Time %d:\n",l);
  
