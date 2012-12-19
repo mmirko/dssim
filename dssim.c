@@ -705,11 +705,17 @@ int main( int argc, char* argv[] )
 		for (inode=agfstnode(dsgraph);inode!=NULL;inode=agnxtnode(dsgraph,inode)) {
 			if (verbose) printf(" - Importing node %s edges:\n",inode->name);
 			for (iedge=agfstout(dsgraph,inode);iedge!=NULL;iedge=agnxtout(dsgraph,iedge)) {
-				if (verbose) printf("   - Importing edge - %s (Host %p) -> %s (Host %p)\n",iedge->tail->name,iedge->tail,iedge->head->name,iedge->head);
 				// Find the two indexes
 				j=search_node_id(ithnode,iedge->tail,nodes);
 				k=search_node_id(ithnode,iedge->head,nodes);
-				*(links+j*nodes+k)=1;
+
+				tempstr=agget(iedge,"index");
+				if ((tempstr!=NULL)&&(strcmp("",tempstr))) {
+					*(links+j*nodes+k)=atoi(tempstr);
+				} else {
+					*(links+j*nodes+k)=1;
+				}
+				if (verbose) printf("   - Importing edge (Label %d) - %s (Host %p) -> %s (Host %p)\n",*(links+j*nodes+k),iedge->tail->name,iedge->tail,iedge->head->name,iedge->head);
 			}
 		}
 

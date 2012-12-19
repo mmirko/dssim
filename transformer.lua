@@ -126,7 +126,7 @@ function resolve_action(act)
 			if dest=='NEIGHBORS' then
 
 				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
-				result=result..'\t\t\t\tif (links[nid*nodes+i] == YES) {<<<CR>>>'
+				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
 				result=result..'\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..val..';<<<CR>>>'
 				result=result..'\t\t\t\t}<<<CR>>>'
 				result=result..'\t\t\t}<<<CR>>>'
