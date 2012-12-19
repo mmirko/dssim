@@ -137,6 +137,97 @@ Agraph_t * hypercube(GVC_t* gvc, int dim)
 }
 
 
+Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
+{
+	int i,j;
+
+	Agraph_t * result=NULL;
+
+	Agnode_t *n1, *n2;
+	Agedge_t *e;
+
+	char tempstr1[11];
+	char tempstr2[11];
+
+	result=agopen("dsgraph", AGDIGRAPH);
+
+	for (i=0;i<n;i++) {
+		for (j=0;j<m;j++) {
+			sprintf(tempstr1,"X%04dY%04d",i,j);
+			sprintf(tempstr2,"X%03d,%03d",i*10,j*10);
+			tempstr1[10]=0;
+			n1=agnode(result, tempstr1);
+		}
+	}
+
+	for (i=0;i<n;i++) {
+		for (j=0;j<m;j++) {
+			sprintf(tempstr1,"X%04dY%04d",i,j);
+			tempstr1[10]=0;
+			n1=agnode(result, tempstr1);
+
+			if (i==0) {
+				if ((open==0)&&(n>2)) {
+					sprintf(tempstr2,"X%04dY%04d",n-1,j);
+					tempstr2[10]=0;
+					n2=agnode(result, tempstr2);
+					e=agedge(result,n1,n2);
+				}
+			} else {
+				sprintf(tempstr2,"X%04dY%04d",i-1,j);
+				tempstr2[10]=0;
+				n2=agnode(result, tempstr2);
+				e=agedge(result,n1,n2);
+			}
+
+			if (i==n-1) {
+				if ((open==0)&&(n>2)) {
+					sprintf(tempstr2,"X%04dY%04d",0,j);
+					tempstr2[10]=0;
+					n2=agnode(result, tempstr2);
+					e=agedge(result,n1,n2);
+				}
+			} else {
+				sprintf(tempstr2,"X%04dY%04d",i+1,j);
+				tempstr2[10]=0;
+				n2=agnode(result, tempstr2);
+				e=agedge(result,n1,n2);
+			}
+
+			if (j==0) {
+				if ((open==0)&&(m>2)) {
+					sprintf(tempstr2,"X%04dY%04d",i,m-1);
+					tempstr2[10]=0;
+					n2=agnode(result, tempstr2);
+					e=agedge(result,n1,n2);
+				}
+			} else {
+				sprintf(tempstr2,"X%04dY%04d",i,j-1);
+				tempstr2[10]=0;
+				n2=agnode(result, tempstr2);
+				e=agedge(result,n1,n2);
+			}
+
+			if (j==m-1) {
+				if ((open==0)&&(m>2)) {
+					sprintf(tempstr2,"X%04dY%04d",i,0);
+					tempstr2[10]=0;
+					n2=agnode(result, tempstr2);
+					e=agedge(result,n1,n2);
+				}
+			} else {
+				sprintf(tempstr2,"X%04dY%04d",i,j+1);
+				tempstr2[10]=0;
+				n2=agnode(result, tempstr2);
+				e=agedge(result,n1,n2);
+			}
+	
+		}
+	}
+	return result;
+}
+
+
 
 int main( int argc, char* argv[] )
 {
@@ -209,7 +300,8 @@ int main( int argc, char* argv[] )
 	// Open graphviz context
 	gvc = gvContext();
 
-	dsgraph=hypercube(gvc,3);
+//	dsgraph=hypercube(gvc,3);
+	dsgraph=lattice2d(gvc,1,4,4);
 
 	gvLayout (gvc, dsgraph,"dot");
 	gvRender (gvc, dsgraph,"dot",stdout);
