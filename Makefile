@@ -17,11 +17,11 @@
 
 
 .phony: all
-all: dssim dssim_gen
+all: dssim dssim_gen flooding_early_tree4 flooding_early_lattice
 
 .phony: clean
 clean:
-	rm -f *.o *.png *.avi dssim dssim_gen transformer.c outfile*
+	rm -f *.o *.png *.avi dssim dssim_gen transformer.c outfile* ./flooding*/dssim*
 
 transformer.c : lua_embedder.py transformer.lua
 	./lua_embedder.py > transformer.c
@@ -31,3 +31,13 @@ dssim: dssim.c transformer.c
 
 dssim_gen: dssim_gen.c
 	gcc -o dssim_gen dssim_gen.c -lm -lgvc
+
+.phony: flooding_early_tree4
+flooding_early_tree4: dssim
+	ln -sf ../dssim flooding_early_tree4/dssim 
+	ln -sf ../dssim_video flooding_early_tree4/dssim_video
+
+.phony: flooding_early_lattice
+flooding_early_lattice: dssim
+	ln -sf ../dssim flooding_early_lattice/dssim 
+	ln -sf ../dssim_video flooding_early_lattice/dssim_video

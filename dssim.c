@@ -138,6 +138,12 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 				bname=(char *) lua_tostring(L, -1);
 				bid=search_node_id_from_name(ithnode,bname,nodes);
 
+				if (bid==-1) {
+					fprintf (stderr,"node %s in the init file does not exist in graph",bname);
+					lua_close(L);
+					exit(1);
+				}
+
 				for (j=0;j<registers;j++) {
 					lua_getglobal(L, "get_boundary_el_state");
 					lua_pushinteger(L,step);
@@ -445,7 +451,7 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-b]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
 	printf("\tOptions:\n");
@@ -459,6 +465,7 @@ void usage()
 	printf("\t\t-s file  - Save the created kernel as file\n");
 	printf("\t\t-t file  - Set the simulation time (default 10000)\n");
 	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
+	printf("\t\t-b       - Bypass the check of ending condition\n");
 	fflush(stdout);
 
 }
@@ -584,13 +591,16 @@ int main( int argc, char* argv[] )
 	// Simulation time
 	int sim_time=1000;
 
+	// Bypass the ending check
+	int bypass_ending=0;
+
 	///// Program start
 
 	// Size, in bytes, of each vector
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvVk:p:g:i:s:ot:")) != -1)
+	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -623,6 +633,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 'o':
 			pngout=1;
+			break;
+		case 'b':
+			bypass_ending=1;
 			break;
                 case '?':
                         if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
@@ -807,7 +820,9 @@ int main( int argc, char* argv[] )
 		ending_messages = (int*)malloc(messtypes*bytes);
 
 		// Populate the ending conditions
-		lua_ending(L,ending_states,ending_messages,registers,messtypes);	
+		if (bypass_ending==0) {
+			lua_ending(L,ending_states,ending_messages,registers,messtypes);	
+		}
 
 		// Populate the styles
 		styles=lua_styles(L);
@@ -1138,8 +1153,10 @@ int main( int argc, char* argv[] )
 			if (verbose) printf("\n");
 		}
 		if (verbose) printf("\n");
-	
-		if (check_end(states,messages,nodes,ending_states,ending_messages,registers,messtypes) == 1) break;
+
+		if (bypass_ending==0) {	
+			if (check_end(states,messages,nodes,ending_states,ending_messages,registers,messtypes) == 1) break;
+		}
 	
 		tempm=d_messages_in;
 		d_messages_in=d_messages_out;

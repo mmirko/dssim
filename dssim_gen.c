@@ -154,7 +154,6 @@ Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
 	for (i=0;i<n;i++) {
 		for (j=0;j<m;j++) {
 			sprintf(tempstr1,"X%04dY%04d",i,j);
-			sprintf(tempstr2,"X%03d,%03d",i*10,j*10);
 			tempstr1[10]=0;
 			n1=agnode(result, tempstr1);
 		}
@@ -301,7 +300,7 @@ int main( int argc, char* argv[] )
 	gvc = gvContext();
 
 //	dsgraph=hypercube(gvc,3);
-	dsgraph=lattice2d(gvc,1,4,4);
+	dsgraph=lattice2d(gvc,0,10,10);
 
 	gvLayout (gvc, dsgraph,"dot");
 	gvRender (gvc, dsgraph,"dot",stdout);

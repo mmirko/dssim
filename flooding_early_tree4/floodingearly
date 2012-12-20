@@ -1,0 +1,6 @@
+registers = { STATE = {"IDLE", "INIT"}}
+messtypes = { IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
+options = { "RESET_MESS" }
+actions = {}
+actions[{"STATE_INIT","IMPULSE_YES"}] = { { "set","STATE_IDLE" } , { "send","BROADCAST_SENT","NEIGHBORS" } }
+actions[{"STATE_IDLE","BROADCAST_SENT"}] = { { "send","BROADCAST_SENT","NEIGHBORS" } }
