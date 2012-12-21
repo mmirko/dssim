@@ -17,33 +17,15 @@
 
 
 .phony: all
-all: dssim dssim_gen flooding_early_tree4 flooding_early_lattice flooding_mid_lattice
+all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png *.avi dssim dssim_gen transformer.c outfile*
-	$(MAKE) -r -C flooding_early_lattice clean
-	$(MAKE) -r -C flooding_early_tree4 clean
-	$(MAKE) -r -C flooding_mid_lattice clean
+	rm -f *.o *.png *.avi dssim dssim_gen dssim_video transformer.c outfile*
 
-transformer.c : lua_embedder.py transformer.lua
-	./lua_embedder.py > transformer.c
-
-dssim: dssim.c transformer.c
-	gcc -lOpenCL -o dssim dssim.c -lm -lgvc -llua
-
-dssim_gen: dssim_gen.c
-	gcc -o dssim_gen dssim_gen.c -lm -lgvc
-
-.phony: flooding_early_lattice
-flooding_early_lattice:
-	$(MAKE) -r -C flooding_early_lattice $(TARGET)
-
-.phony: flooding_early_tree4
-flooding_early_tree4:
-	$(MAKE) -r -C flooding_early_tree4 $(TARGET)
-
-.phony: flooding_mid_lattice
-flooding_mid_lattice:
-	$(MAKE) -r -C flooding_mid_lattice $(TARGET)
+.phony: dssim
+dssim:
+	ln -sf ../dssim dssim
+	ln -sf ../dssim_gen dssim_gen
+	ln -sf ../dssim_video dssim_video
 

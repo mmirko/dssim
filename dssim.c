@@ -1106,7 +1106,7 @@ int main( int argc, char* argv[] )
 
 			sprintf(filen,"outfile%04d.png",l);
 			fp=fopen(filen,"w");
-			gvLayout (gvc, dsgraph, "dot");
+			gvLayout (gvc, dsgraph, "neato");
 			gvRender (gvc, dsgraph, "png", fp);
 			gvFreeLayout(gvc, dsgraph);
 			fclose(fp);
