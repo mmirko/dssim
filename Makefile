@@ -37,13 +37,13 @@ dssim_gen: dssim_gen.c
 
 .phony: flooding_early_lattice
 flooding_early_lattice:
-	$(MAKE) -r -C flooding_early_lattice $(TARGET)
+	$(MAKE) -r -C flooding_early_lattice all
 
 .phony: flooding_early_tree4
 flooding_early_tree4:
-	$(MAKE) -r -C flooding_early_tree4 $(TARGET)
+	$(MAKE) -r -C flooding_early_tree4 all
 
 .phony: flooding_mid_lattice
 flooding_mid_lattice:
-	$(MAKE) -r -C flooding_mid_lattice $(TARGET)
+	$(MAKE) -r -C flooding_mid_lattice all
 

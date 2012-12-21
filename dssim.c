@@ -451,7 +451,7 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-b]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-T type] [-b]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
 	printf("\tOptions:\n");
@@ -465,6 +465,7 @@ void usage()
 	printf("\t\t-s file  - Save the created kernel as file\n");
 	printf("\t\t-t file  - Set the simulation time (default 10000)\n");
 	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
+	printf("\t\t-T type  - Select Graphviz rendering: \"dot\", \"neato\" or \"gtk\"\n");
 	printf("\t\t-b       - Bypass the check of ending condition\n");
 	fflush(stdout);
 
@@ -527,6 +528,9 @@ int main( int argc, char* argv[] )
 
 	// Save kernel file name
 	char * save_kernel = NULL;
+
+	// Output target
+	char * output_target = NULL;
 
 	// Graph(viz) managment
 	GVC_t* gvc;
@@ -600,7 +604,7 @@ int main( int argc, char* argv[] )
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:")) != -1)
+	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -624,6 +628,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 'i':
 			initial_file=strdup(optarg);
+			break;
+		case 'T':
+			output_target=strdup(optarg);
 			break;
 		case 's':
 			save_kernel=strdup(optarg);
@@ -845,6 +852,14 @@ int main( int argc, char* argv[] )
 			printf("Produced OpenCL kernel:\n\n");
 			printf("%s",kernelSource);
 			printf("\n----\n");
+		}
+
+// TODO: Include controls on save kernel
+
+		if (save_kernel != NULL) {
+			fp = fopen(save_kernel, "w");
+			fprintf(fp,"%s",kernelSource);
+			fclose(fp);
 		}
 
 	} else if ((protocol_file==NULL)&&(kernel_file!=NULL)) {
@@ -1104,12 +1119,22 @@ int main( int argc, char* argv[] )
 				}
 			}
 
-			sprintf(filen,"outfile%04d.png",l);
-			fp=fopen(filen,"w");
-			gvLayout (gvc, dsgraph, "neato");
-			gvRender (gvc, dsgraph, "png", fp);
-			gvFreeLayout(gvc, dsgraph);
-			fclose(fp);
+			if (output_target==NULL) {
+				output_target=strdup("dot");
+			}
+
+			if ((!strcmp(output_target,"dot"))||(!strcmp(output_target,"neato"))) {
+				sprintf(filen,"outfile%04d.png",l);
+				fp=fopen(filen,"w");
+				gvLayout (gvc, dsgraph, output_target);
+				gvRender (gvc, dsgraph, "png", fp);
+				gvFreeLayout(gvc, dsgraph);
+				fclose(fp);
+			} else if (!strcmp(output_target,"gtk")) {
+				gvLayout (gvc, dsgraph, output_target);
+				gvRender (gvc, dsgraph, "gtk", fp);
+				gvFreeLayout(gvc, dsgraph);
+			}
 
 		}
 

@@ -2,6 +2,7 @@
 ###
 ############## TODO  list ##############
 ###
+#High	- Include controls on save_kernel
 #High	- Finalize the OpenCL platform and device managment
 #Med	- Finalize the report system
 #Med	- Connect to mel
