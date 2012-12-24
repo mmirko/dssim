@@ -1,60 +1,115 @@
 #!/bin/bash
 
-#ARGS=$(getopt -o i:g:p:f: -n "dssim_video" -- "$@");
-#
-##Bad arguments
-#if [ $? -ne 0 ];
-#then
-#	echo "Bad argument"
-#	exit 1
-#fi
-#
-#eval set -- "$ARGS";
-#
-#while true; do
-#	case "$1" in
-#	  -i)
-#	    shift;
-#	    if [ -n "$1" ]; then
-#	      echo "-a used: $1";
-#	      shift;
-#	    fi
-#	    ;;
-#	  -g)
-#	    shift;
-#	    if [ -n "$1" ]; then
-#	      echo "-b used: $1";
-#	      shift;
-#	    fi
-#	    ;;
-#	  -p)
-#	    shift;
-#	    echo "-c used";
-#	    ;;
-#	  -f)
-#	    shift;
-#	    echo "-c used";
-#	    ;;
-#	  --)
-#	    shift;
-#	    break;
-#	    ;;
-#	esac
-#done
+ARGS=$(getopt -o i:g:p:f:hoT: -n "dssim_video" -- "$@");
 
+#Bad arguments
+if [ $? -ne 0 ];
+then
+	echo "Bad argument"
+	exit 1
+fi
 
-if [[ a"$@" == a"-h" ]]
+eval set -- "$ARGS";
+
+initf=""
+graph=""
+proto=""
+frame=""
+helpp=""
+
+PARAMETERS=""
+
+while true; do
+	case "$1" in
+	  -i)
+	    shift;
+	    if [ -n "$1" ]; then
+	      initf=$1
+	      shift;
+	    fi
+	    PARAMETERS="$PARAMETERS -i $initf"
+	    ;;
+	  -g)
+	    shift;
+	    if [ -n "$1" ]; then
+	      graph=$1
+	      shift;
+	    fi
+	    PARAMETERS="$PARAMETERS -g $graph"
+	    ;;
+	  -p)
+	    shift;
+	    if [ -n "$1" ]; then
+	      proto=$1
+	      shift;
+	    fi
+	    PARAMETERS="$PARAMETERS -p $proto"
+	    ;;
+	  -f)
+	    shift;
+	    if [ -n "$1" ]; then
+	      frame=$1
+	      shift;
+	    fi
+	    ;;
+	  -T)
+	    shift;
+	    if [ -n "$1" ]; then
+	      typee=$1
+	      shift;
+	    fi
+	    PARAMETERS="$PARAMETERS -T $typee"
+	    ;;
+	  -h)
+	    helpp="true"
+	    shift;
+	    ;;
+	  -o)
+	    shift;
+	    ;;
+	  --)
+	    shift;
+	    break;
+	    ;;
+	esac
+done
+
+if [[ "a$helpp" == "atrue" ]]
 then
 	./dssim -h | sed "s/dssim/dssim_video/g"
 	echo -e "\t\t-f val   - Set the frame per second value (default 1)"	
-else
-	./dssim $@  > /dev/null 2>&1
-	if [ -e outfile0001.png ]
+	exit 0
+fi
+
+if [[ "a$initf" == "a" ]]
+then
+	echo "Missing init file"
+	exit 1
+fi
+
+if [[ "a$graph" == "a" ]]
+then
+	echo "Missing graph file"
+	exit 1
+fi
+
+if [[ "a$proto" == "a" ]]
+then
+	echo "Missing protocol file"
+	exit 1
+fi
+
+./dssim $PARAMETERS -o > /dev/null 2>&1
+if [ -e outfile0001.png ]
+then
+	FILENAME=$RANDOM""videoout.avi
+	if [[ "a$frame" == "a" ]]
 	then
-		FILENAME=$RANDOM""videoout.avi
 		mencoder "mf://*.png" -mf fps=1 -o $FILENAME -ovc lavc -lavcopts vcodec=msmpeg4v2:vbitrate=800 > /dev/null 2>&1
-		mplayer -fs $FILENAME  > /dev/null 2>&1
-		rm -f outfile*png $FILENAME  > /dev/null 2>&1
+	else
+		mencoder "mf://*.png" -mf fps=$frame -o $FILENAME -ovc lavc -lavcopts vcodec=msmpeg4v2:vbitrate=800 > /dev/null 2>&1
 	fi
+	mplayer -fs $FILENAME  > /dev/null 2>&1
+	rm -f outfile*png $FILENAME  > /dev/null 2>&1
 fi
 
