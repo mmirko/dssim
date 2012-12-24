@@ -109,7 +109,7 @@ function split(str, pat)
 end
 
 -- Create a single action
-function resolve_action(act)
+function resolve_action(mat,act)
 	result=''
 	for vv,atom in ipairs(act) do
 		if atom[1] == 'set' then
@@ -131,6 +131,17 @@ function resolve_action(act)
 				result=result..'\t\t\t\t}<<<CR>>>'
 				result=result..'\t\t\t}<<<CR>>>'
 			end
+
+			if dest=='NOTSENDERS' then
+				print()
+				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
+				result=result..'\t\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..mtype..']!='..mtype..'_'..val..') {<<<CR>>>'
+				result=result..'\t\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..val..';<<<CR>>>'
+				result=result..'\t\t\t\t\t}<<<CR>>>'
+				result=result..'\t\t\t\t}<<<CR>>>'
+				result=result..'\t\t\t}<<<CR>>>'
+			end
 		end
 	end
 	return result
@@ -146,9 +157,9 @@ function create_actions()
 			if k1~=1 then result=result..'&&' end
 			result=result..'(flag_'..string.lower(v1)..'==YES)'
 		end
-			result=result..') {<<<CR>>>'
-			result=result..resolve_action(v)
-			result=result..'\t\t}<<<CR>>><<<CR>>>'
+		result=result..') {<<<CR>>>'
+		result=result..resolve_action(k,v)
+		result=result..'\t\t}<<<CR>>><<<CR>>>'
 	end
 	return result
 end

@@ -17,7 +17,7 @@
 
 
 .phony: all
-all: dssim dssim_gen flooding_early_tree4 flooding_early_lattice flooding_mid_lattice
+all: dssim dssim_gen flooding_early_tree4 flooding_early_lattice flooding_mid_lattice flooding_lattice
 
 .phony: clean
 clean:
@@ -25,6 +25,7 @@ clean:
 	$(MAKE) -r -C flooding_early_lattice clean
 	$(MAKE) -r -C flooding_early_tree4 clean
 	$(MAKE) -r -C flooding_mid_lattice clean
+	$(MAKE) -r -C flooding_lattice clean
 
 transformer.c : lua_embedder.py transformer.lua
 	./lua_embedder.py > transformer.c
@@ -46,4 +47,8 @@ flooding_early_tree4:
 .phony: flooding_mid_lattice
 flooding_mid_lattice:
 	$(MAKE) -r -C flooding_mid_lattice all
+
+.phony: flooding_lattice
+flooding_lattice:
+	$(MAKE) -r -C flooding_lattice all
 
