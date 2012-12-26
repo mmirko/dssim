@@ -21,11 +21,23 @@ all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png *.avi dssim dssim_gen dssim_video transformer.c outfile*
+	@ rm -f *.o *.png *.avi *.tmp dssim dssim_gen dssim_video transformer.c outfile*
 
 .phony: dssim
 dssim:
-	ln -sf ../dssim dssim
-	ln -sf ../dssim_gen dssim_gen
-	ln -sf ../dssim_video dssim_video
+	@ ln -sf ../dssim dssim
+	@ ln -sf ../dssim_gen dssim_gen
+	@ ln -sf ../dssim_video dssim_video
 
+.phony: video
+video: dssim
+	@ ./dssim_video -i flooding.init -p flooding -g lattice10.dot -T neato
+
+.phony: regression
+regression: dssim
+	@ ./dssim -i flooding.init -p flooding -g lattice10.dot > regression.tmp
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK" ) || echo "FAIL"
+
+.phony: regression-update
+regression-update: dssim
+	@ ./dssim -i flooding.init -p flooding -g lattice10.dot > regression.dat
