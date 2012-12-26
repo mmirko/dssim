@@ -66,7 +66,7 @@ struct style_entry {
 	struct style_entry * next;
 };
 
-void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes)
+void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes, int * message_defaults)
 {
 	int i,j,k;
 	int tempdefault;
@@ -100,6 +100,8 @@ void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messag
 			}
 			tempdefault=lua_tointeger(L, -1);
 			lua_pop(L,1);
+
+			*(message_defaults+k)=tempdefault;
 	
 			for (i=0;i<nodes;i++) {
 				for (j=0;j<nodes;j++) {
@@ -250,8 +252,8 @@ char * id_to_name(lua_State *L,int opmode,int regotmess, int lev1, int lev2)
 
 	lua_pushinteger(L,lev1);
 
-	// lev2 == -1 means to resolve the name of the level1
-	if (lev2 == -1 ) {
+	// lev2 == -10 means to resolve the name of the level1
+	if (lev2 == -10 ) {
 		lua_pushnil(L);
 	} else {
 		lua_pushinteger(L,lev2);
@@ -566,6 +568,9 @@ int main( int argc, char* argv[] )
 	// Message types
 	unsigned int messtypes = MESSTYPES;
 
+	// Array fot the default message value
+	int *message_defaults;
+
  	// The states matrix is a nodes x registers which stores for each entity the value of the given register. Two things:
  	// 1 - The register value if up to the opencl kernel, it is relevant to the host only for analysis purposes.
  	// 2 - The first register is the state register and has to exist.
@@ -818,6 +823,9 @@ int main( int argc, char* argv[] )
 			shutdown(gvc,dsgraph,L);
 		}
 
+		// Allocate memory for messa_defaults
+		message_defaults=(int*) malloc(messtypes*sizeof(int));
+
 		// Allocate memory for each vector on host
 		states = (int*)malloc(nodes*registers*bytes);
 		messages = (int*)malloc(nodes*nodes*messtypes*bytes);
@@ -1009,8 +1017,8 @@ int main( int argc, char* argv[] )
 		defaults(states,messages,nodes,-1);
 		defaults(states,messages,nodes,0);
 	} else {
-		lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes);
-		lua_defaults(L,ithnode,states,messages,nodes,0,registers,messtypes);
+		lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes,message_defaults);
+		lua_defaults(L,ithnode,states,messages,nodes,0,registers,messtypes,message_defaults);
 	}
 
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
@@ -1057,7 +1065,7 @@ int main( int argc, char* argv[] )
 	if (opmode==1) {
 		defaults(states,messages,nodes,-1);
 	} else {
-		lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes);
+		lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes,message_defaults);
 	}
 
 	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
@@ -1164,7 +1172,7 @@ int main( int argc, char* argv[] )
 
 			for (j=0 ; j < nodes ; j++) {
 				for (k=0 ; k < messtypes ; k++) {
-					if ( *(messages+(i*nodes+j)*messtypes+k)!=0) {
+					if ( *(messages+(i*nodes+j)*messtypes+k)!=*(message_defaults+k)) {
 						tempstr=id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
 						if (tempstr != NULL) {
 							if (verbose) printf("( %s -> %s ) ",tempstr,(*(ithnode+j))->name);
@@ -1205,6 +1213,7 @@ int main( int argc, char* argv[] )
 	free(links);
 	free(states);
 	free(messages);
+	free(message_defaults);
 	free(entity);
 
 	// Release graph(viz) resources

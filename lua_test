@@ -2,4 +2,4 @@ dofile 'broadcast'
 dofile 'broadcast.init'
 dofile 'transformer.lua'
 
-print(transformer("broadcast"))
+print(name_to_id("IMPULSE_NO"))

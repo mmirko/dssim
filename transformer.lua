@@ -18,11 +18,15 @@ function defines()
 	for k,v in pairs(messtypes) do
 		result=result..'#define MESS_'..k..' '..regi..'<<<CR>>><<<CR>>>'
 		regi=regi+1
-		result=result..'#define '..k..'_NO 0<<<CR>>>'
-		vali=1
-		for k1,v1 in ipairs(v) do
-			result=result..'#define '..k..'_'..v1..' '..vali..'<<<CR>>>'
-			vali=vali+1
+		if table.getn(v) > 0 then
+			result=result..'#define '..k..'_NO 0<<<CR>>>'
+			vali=1
+			for k1,v1 in ipairs(v) do
+				result=result..'#define '..k..'_'..v1..' '..vali..'<<<CR>>>'
+				vali=vali+1
+			end
+		else
+			result=result..'#define '..k..'_NO -1<<<CR>>>'
 		end
 	result=result..'<<<CR>>>'
 	end
@@ -133,7 +137,6 @@ function resolve_action(mat,act)
 			end
 
 			if dest=='NOTSENDERS' then
-				print()
 				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
 				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
 				result=result..'\t\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..mtype..']!='..mtype..'_'..val..') {<<<CR>>>'
@@ -173,11 +176,11 @@ function footer_options()
 		if v == 'RESET_MESS' then
 			result=result..'<<<CR>>>\t\t// Clean up all the received messages<<<CR>>>'
 			result=result..'\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
-			result=result..'\t\t\tfor (j=0;j<messtypes;j++) {<<<CR>>>'
-			result=result..'\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+j] != NO) {<<<CR>>>'
-			result=result..'\t\t\t\t\tmessages_in[(i*nodes+nid)*messtypes+j]=NO;<<<CR>>>'
-			result=result..'\t\t\t\t}<<<CR>>>'
-			result=result..'\t\t\t}<<<CR>>>'
+			for k,v in pairs(messtypes) do
+				result=result..'\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..k..'] != '..k..'_NO) {<<<CR>>>'
+				result=result..'\t\t\t\tmessages_in[(i*nodes+nid)*messtypes+MESS_'..k..']='..k..'_NO;<<<CR>>>'
+				result=result..'\t\t\t}<<<CR>>>'
+			end
 			result=result..'\t\t}<<<CR>>>'
 		end
 	end
@@ -287,9 +290,18 @@ function name_to_id(regormess)
 		if 'MESS_'..k==regormess then
 			return num
 		end
-		for k1,v1 in ipairs(v) do
-			if k..'_'..v1==regormess then
-				return k1-1
+		if table.getn(v) > 0 then
+			if k..'_NO'==regormess then
+				return 0
+			end
+			for k1,v1 in ipairs(v) do
+				if k..'_'..v1==regormess then
+					return k1-1
+				end
+			end
+		else
+			if k..'_NO'==regormess then
+				return -1
 			end
 		end
 	end
@@ -311,18 +323,28 @@ function id_to_name(rtype,cid,lid)
 			if lid==nil then
 				return prefix..k
 			else
-				for k1,v1 in ipairs(v) do
-					if cktab==registers then
-						if k1-1==lid then
-							return k..'_'..v1
+				if table.getn(v) > 0 then
+					for k1,v1 in ipairs(v) do
+						if cktab==registers then
+							if k1-1==lid then
+								return k..'_'..v1
+							end
+						else
+							if lid==0 then
+								return k..'_NO'
+							end
+							if k1==lid then
+								return k..'_'..v1
+							end
 						end
+					end
+				else
+					if lid==-1 then
+						return k..'_NO'
+					elseif lid==0 then
+						return k..'_RING'
 					else
-						if lid==0 then
-							return k..'_NO'
-						end
-						if k1==lid then
-							return k..'_'..v1
-						end
+						return k..'_'..tostring(lid)
 					end
 				end
 			end
@@ -369,13 +391,21 @@ function get_default_mess(reg)
 	regi=0
 	for k,v in pairs(messtypes) do
 		if regi==reg then
-			for k1,v1 in ipairs(v) do
+			if table.getn(v) > 0 then
+				for k1,v1 in ipairs(v) do
+					for k2,v2 in ipairs(defaults) do
+						if v2==k..'_NO' then
+							return 0
+						end
+						if v2==k..'_'..v1 then
+							return k1
+						end
+					end
+				end
+			else
 				for k2,v2 in ipairs(defaults) do
 					if v2==k..'_NO' then
-						return 0
-					end
-					if v2==k..'_'..v1 then
-						return k1
+						return -1
 					end
 				end
 			end		
@@ -422,13 +452,21 @@ function get_ending_mess(reg)
 	regi=0
 	for k,v in pairs(messtypes) do
 		if regi==reg then
-			for k1,v1 in ipairs(v) do
+			if table.getn(v) > 0 then
+				for k1,v1 in ipairs(v) do
+					for k2,v2 in ipairs(ending) do
+						if v2==k..'_NO' then
+							return 0
+						end
+						if v2==k..'_'..v1 then
+							return k1
+						end
+					end
+				end
+			else
 				for k2,v2 in ipairs(ending) do
 					if v2==k..'_NO' then
-						return 0
-					end
-					if v2==k..'_'..v1 then
-						return k1
+						return -1
 					end
 				end
 			end		
