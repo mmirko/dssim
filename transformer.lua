@@ -222,12 +222,26 @@ function transformer(protocol_name)
 	-- This is the received messages
 	opencl_kernel=opencl_kernel..'<<<CR>>>\t\t//Check the received messages<<<CR>>>'
 	for k,v in pairs(messtypes) do
-		for k1,v1 in ipairs(v) do
-			opencl_kernel=opencl_kernel..'\t\tint flag_'..string.lower(k)..'_'..string.lower(v1)..' = NO;<<<CR>>>'
+		if table.getn(v) > 0 then
+			for k1,v1 in ipairs(v) do
+				opencl_kernel=opencl_kernel..'\t\tint flag_'..string.lower(k)..'_'..string.lower(v1)..' = NO;<<<CR>>>'
+
+				opencl_kernel=opencl_kernel..'\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+				opencl_kernel=opencl_kernel..'\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..k..'] == '..k..'_'..v1..') {<<<CR>>>'
+				opencl_kernel=opencl_kernel..'\t\t\t\tflag_'..string.lower(k)..'_'..string.lower(v1)..' = YES;<<<CR>>>'
+				opencl_kernel=opencl_kernel..'\t\t\t}<<<CR>>>'
+				opencl_kernel=opencl_kernel..'\t\t}<<<CR>>><<<CR>>>'
+			end
+		else
+			opencl_kernel=opencl_kernel..'\t\tint flag_'..string.lower(k)..'_ring = NO;<<<CR>>>'
 
 			opencl_kernel=opencl_kernel..'\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
-			opencl_kernel=opencl_kernel..'\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..k..'] == '..k..'_'..v1..') {<<<CR>>>'
-			opencl_kernel=opencl_kernel..'\t\t\t\tflag_'..string.lower(k)..'_'..string.lower(v1)..' = YES;<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..k..'] != '..k..'_NO) {<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..k..'] == 0) {<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t\t\tflag_'..string.lower(k)..'_ring = YES;<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t\t} else {<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t\t\tmessages_out[(i*nodes+nid)*messtypes+MESS_'..k..'] = messages_in[(i*nodes+nid)*messtypes+MESS_'..k..']-1;<<<CR>>>'
+			opencl_kernel=opencl_kernel..'\t\t\t\t}<<<CR>>>'
 			opencl_kernel=opencl_kernel..'\t\t\t}<<<CR>>>'
 			opencl_kernel=opencl_kernel..'\t\t}<<<CR>>><<<CR>>>'
 		end
