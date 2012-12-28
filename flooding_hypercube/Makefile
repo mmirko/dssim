@@ -21,11 +21,29 @@ all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png *.avi dssim dssim_gen dssim_video transformer.c outfile*
+	@ rm -f *.o *.png *.avi *.tmp dssim dssim_gen dssim_video transformer.c outfile*
 
 .phony: dssim
 dssim:
-	ln -sf ../dssim dssim
-	ln -sf ../dssim_gen dssim_gen
-	ln -sf ../dssim_video dssim_video
+	@ ln -sf ../dssim dssim
+	@ ln -sf ../dssim_gen dssim_gen
+	@ ln -sf ../dssim_video dssim_video
 
+.phony: video
+video: dssim
+	@ ./dssim_video -i flooding4.init -p flooding -g 4cube.dot
+	@ ./dssim_video -i flooding5.init -p flooding -g 5cube.dot
+	@ ./dssim_video -i flooding6.init -p flooding -g 6cube.dot
+
+.phony: regression
+regression: dssim
+	@ ./dssim -i flooding4.init -p flooding -g 4cube.dot > regression.tmp
+	@ ./dssim -i flooding5.init -p flooding -g 5cube.dot >> regression.tmp
+	@ ./dssim -i flooding6.init -p flooding -g 6cube.dot >> regression.tmp
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK" ) || echo "FAIL"
+
+.phony: regression-update
+regression-update: dssim
+	@ ./dssim -i flooding4.init -p flooding -g 4cube.dot > regression.dat
+	@ ./dssim -i flooding5.init -p flooding -g 5cube.dot >> regression.dat
+	@ ./dssim -i flooding6.init -p flooding -g 6cube.dot >> regression.dat
