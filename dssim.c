@@ -13,7 +13,8 @@
 #define MAX_SOURCE_SIZE (0x100000)
 #define BORDERPERCENT 2
 #define STEPPIXELS 100
- 
+#define ARRFIX 50
+
 #include "transformer.c"
 
 //////////////////////////////////////// In case of custom kernels you have to config these:
@@ -558,17 +559,20 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 	int i,j,k;
 
 	int border;
-	int white,red;
+	int white,red,green;
 	int bordper=BORDERPERCENT;
-	int stepx,stepy,startx,starty;
+	int stepx,stepy,startx,starty,x3,y3;
 	int avspace;
 	char temps[5];
+
+	int delta;
 
 	border = (int) ((bordper*tedimx)/100);
 	if (border > (bordper*tedimy)/100) border=(bordper*tedimy)/100;
 
 	white = gdImageColorAllocate(*tedim,255,255,255);
 	red = gdImageColorAllocate(*tedim,255,0,0);
+	green = gdImageColorAllocate(*tedim,0,255,0);
 
 	avspace=tedimy-4*border;
 	stepx=STEPPIXELS;
@@ -582,13 +586,18 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 	gdImageDashedLine(*tedim,startx+(step-1)*stepx , starty ,startx+(step-1)*stepx, tedimy-starty ,red);
 	gdImageString(*tedim, gdFontGetSmall(), startx+(step-1)*stepx + border, 2*border + stepy*nodes, temps , red);
 
-	gdImageSetAntiAliased(*tedim, white);
+	gdImageSetAntiAliased(*tedim, green);
 
 	for (i=0;i<nodes;i++) {
 		for (j=0;j<nodes;j++) {
 			for (k=0 ; k < messtypes ; k++) {
 				if ( *(messages+(i*nodes+j)*messtypes+k)!=*(message_defaults+k)) {
 					gdImageLine(*tedim,startx+(step-1)*stepx , starty+i*stepy ,startx+(step)*stepx,  starty+j*stepy ,gdAntiAliased);
+
+					delta=(j-i)*(j-i)*stepy*stepy+stepx*stepx;
+					x3=startx+(step)*stepx-ARRFIX*ARRFIX*stepx/delta;
+					y3=starty+j*stepy-ARRFIX*ARRFIX*(j-i)*stepy/delta;
+					gdImageArc(*tedim, x3, y3, ARRFIX/2, ARRFIX/2, 0, 360, white);
 				}
 			}
 		}
