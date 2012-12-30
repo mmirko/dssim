@@ -1,7 +1,7 @@
 defaults = { "STATE_IDLE", "IMPULSE_NO" , "BROADCAST_NO", "CLOCK_NO"}
 
 boundary = {}
-boundary[0] = { ["N1"] = {"STATE_INIT","IMPULSE_YES"} }
+boundary[0] = { ["N1"] = {"STATE_INIT","IMPULSE_YES"} , ["N12"] = {"STATE_INIT","IMPULSE_YES"}}
 
 ending = {"STATE_DONE", "IMPULSE_NO" , "BROADCAST_NO" , "CLOCK_NO"}
 

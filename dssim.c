@@ -577,10 +577,10 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 	startx=STEPPIXELS;
 	starty=2*border;
 
-	sprintf(temps,"%d",step);
+	sprintf(temps,"t=%d",step);
 
 	gdImageDashedLine(*tedim,startx+(step-1)*stepx , starty ,startx+(step-1)*stepx, tedimy-starty ,red);
-	gdImageString(*tedim, gdFontGetSmall(), startx+(step-1)*stepx + border, tedimy-starty,temps , red);
+	gdImageString(*tedim, gdFontGetSmall(), startx+(step-1)*stepx + border, 2*border + stepy*nodes, temps , red);
 
 	gdImageSetAntiAliased(*tedim, white);
 
