@@ -7,8 +7,12 @@
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
 #include <graphviz/graph.h>
+#include <gd.h>
+#include <gdfonts.h>
 
 #define MAX_SOURCE_SIZE (0x100000)
+#define BORDERPERCENT 2
+#define STEPPIXELS 100
  
 #include "transformer.c"
 
@@ -453,7 +457,7 @@ void version()
 void usage()
 {
 	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-T type] [-b]\n");
+	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-T type] [-b] [-e]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
 	printf("\tOptions:\n");
@@ -469,6 +473,7 @@ void usage()
 	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
 	printf("\t\t-T type  - Select Graphviz rendering: \"dot\", \"neato\" or \"gtk\"\n");
 	printf("\t\t-b       - Bypass the check of ending condition\n");
+	printf("\t\t-e       - Generate a ted.png file\n");
 	fflush(stdout);
 
 }
@@ -506,6 +511,91 @@ int search_node_id_from_name(Agnode_t ** ithnode, char * name,int nodes)
 	}
 	return -1;
 }
+
+void default_layout(gdImagePtr * tedim, int tedimx, int tedimy)
+{
+	int border;
+	int white;
+	int bordper=BORDERPERCENT;
+
+	border = (int) ((bordper*tedimx)/100);
+	if (border > (bordper*tedimy)/100) border=(bordper*tedimy)/100;
+
+	white = gdImageColorAllocate(*tedim,255,255,255);
+
+	gdImageLine(*tedim,border,border,tedimx-border,border,white);
+	gdImageLine(*tedim,tedimx-border,border,tedimx-border,tedimy-border,white);
+	gdImageLine(*tedim,tedimx-border,tedimy-border,border,tedimy-border,white);
+	gdImageLine(*tedim,border,border,border,tedimy-border,white);
+}
+
+void nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnode,int nodes)
+{
+	int i;
+
+	int border;
+	int white;
+	int bordper=BORDERPERCENT;
+	int step;
+	int avspace;
+
+	border = (int) ((bordper*tedimx)/100);
+	if (border > (bordper*tedimy)/100) border=(bordper*tedimy)/100;
+
+	white = gdImageColorAllocate(*tedim,255,255,255);
+
+	avspace=tedimy-4*border;
+	step=avspace/(nodes);
+
+	for (i=0;i<nodes;i++) {
+		gdImageString(*tedim, gdFontGetSmall(),2*border,(2*border+i*step)- gdFontGetSmall()->h / 2 ,(*(ithnode+i))->name, white);
+		gdImageLine(*tedim,3*border + (strlen((*(ithnode+i))->name) * gdFontGetSmall()->w) , (2*border+i*step) ,tedimx-2*border,(2*border+i*step) ,white);
+	}
+}
+
+void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int * message_defaults, int nodes, int messtypes,int step)
+{
+	int i,j,k;
+
+	int border;
+	int white,red;
+	int bordper=BORDERPERCENT;
+	int stepx,stepy,startx,starty;
+	int avspace;
+	char temps[5];
+
+	border = (int) ((bordper*tedimx)/100);
+	if (border > (bordper*tedimy)/100) border=(bordper*tedimy)/100;
+
+	white = gdImageColorAllocate(*tedim,255,255,255);
+	red = gdImageColorAllocate(*tedim,255,0,0);
+
+	avspace=tedimy-4*border;
+	stepx=STEPPIXELS;
+	stepy=avspace/(nodes);
+
+	startx=STEPPIXELS;
+	starty=2*border;
+
+	sprintf(temps,"%d",step);
+
+	gdImageDashedLine(*tedim,startx+(step-1)*stepx , starty ,startx+(step-1)*stepx, tedimy-starty ,red);
+	gdImageString(*tedim, gdFontGetSmall(), startx+(step-1)*stepx + border, tedimy-starty,temps , red);
+
+	gdImageSetAntiAliased(*tedim, white);
+
+	for (i=0;i<nodes;i++) {
+		for (j=0;j<nodes;j++) {
+			for (k=0 ; k < messtypes ; k++) {
+				if ( *(messages+(i*nodes+j)*messtypes+k)!=*(message_defaults+k)) {
+					gdImageLine(*tedim,startx+(step-1)*stepx , starty+i*stepy ,startx+(step)*stepx,  starty+j*stepy ,gdAntiAliased);
+				}
+			}
+		}
+	}
+}
+
+
 
 int main( int argc, char* argv[] )
 {
@@ -603,13 +693,19 @@ int main( int argc, char* argv[] )
 	// Bypass the ending check
 	int bypass_ending=0;
 
+	// Generate a ted file
+	int ted=0;
+	gdImagePtr tedim;
+	FILE * tedout;
+	int tedimx, tedimy;
+
 	///// Program start
 
 	// Size, in bytes, of each vector
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:")) != -1)
+	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:e")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -648,6 +744,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 'b':
 			bypass_ending=1;
+			break;
+		case 'e':
+			ted=1;
 			break;
                 case '?':
                         if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
@@ -1081,6 +1180,14 @@ int main( int argc, char* argv[] )
 	char * filen;
 	filen = malloc(50*sizeof(char));
 
+	if (ted) {
+		tedimx=1024;
+		tedimy=768;
+		tedim = gdImageCreateTrueColor(tedimx,tedimy);
+		default_layout(&tedim,tedimx,tedimy);
+		nodes_layout(&tedim,tedimx,tedimy, ithnode, nodes);
+	}
+
 	// Main simulation cycle
 	for (l=1;l<sim_time;l++) {
 
@@ -1146,6 +1253,10 @@ int main( int argc, char* argv[] )
 
 		}
 
+		if (ted) {
+			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,l);
+		}
+
 		if (err != CL_SUCCESS)
 		{
 			fprintf(stderr, "Failed to read output array! %d\n", err);
@@ -1198,6 +1309,13 @@ int main( int argc, char* argv[] )
 
 	if (lua_check_report(L, "TIME_COMPLEXITY") == 1) printf("Time Complexity: %d\n",l);
 	if (lua_check_report(L, "MESSAGE_COMPLEXITY") == 1) printf("Message Complexity: %ld\n",messcompl);
+
+	if (ted) {
+		tedout=fopen("ted.png","wb");
+		gdImagePng(tedim,tedout);
+		fclose(tedout);
+		gdImageDestroy(tedim);
+	}
  
 	// release OpenCL resources
 	clReleaseMemObject(d_links);
