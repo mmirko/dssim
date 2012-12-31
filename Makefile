@@ -21,7 +21,7 @@ all: dssim dssim_gen flooding_early_tree4 flooding_early_lattice flooding_mid_la
 
 .PHONY: clean
 clean:
-	@ rm -f *.o *.png *.avi dssim dssim_gen transformer.c outfile*
+	@ rm -f *.o *.png *.avi dssim dssim_gen transformer.c
 	@ $(MAKE) --no-print-directory -r -C flooding_early_lattice clean
 	@ $(MAKE) --no-print-directory -r -C flooding_early_tree4 clean
 	@ $(MAKE) --no-print-directory -r -C flooding_mid_lattice clean

@@ -13,7 +13,8 @@
 #define MAX_SOURCE_SIZE (0x100000)
 #define BORDERPERCENT 2
 #define STEPPIXELS 100
-#define ARRFIX 50
+#define ARRFIX 10.0
+#define FF 4.0
 
 #include "transformer.c"
 
@@ -69,6 +70,14 @@ struct style_entry {
 	char * name;
 	struct style_list * top;
 	struct style_entry * next;
+};
+
+struct teddata {
+	int i;
+	int j;
+	int k;
+	struct teddata * next;
+	struct teddata * old;
 };
 
 void lua_defaults(lua_State *L,Agnode_t **  ithnode,  int * states, int * messages, int nodes, int step, int registers, int messtypes, int * message_defaults)
@@ -471,10 +480,10 @@ void usage()
 	printf("\t\t-i file  - Select the initialization file\n");
 	printf("\t\t-s file  - Save the created kernel as file\n");
 	printf("\t\t-t file  - Set the simulation time (default 10000)\n");
-	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
+	printf("\t\t-o       - Generate a PNG with a graph for each simulation step\n");
+	printf("\t\t-e       - Generate a PNG with a TED chart for each simulation step\n");
 	printf("\t\t-T type  - Select Graphviz rendering: \"dot\", \"neato\" or \"gtk\"\n");
 	printf("\t\t-b       - Bypass the check of ending condition\n");
-	printf("\t\t-e       - Generate a ted.png file\n");
 	fflush(stdout);
 
 }
@@ -554,18 +563,24 @@ void nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnod
 	}
 }
 
-void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int * message_defaults, int nodes, int messtypes,int step)
+void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int * message_defaults, int nodes, int messtypes,int step,struct teddata ** teddatas)
 {
-	int i,j,k;
+	int i,j,k,ii;
 
 	int border;
 	int white,red,green;
 	int bordper=BORDERPERCENT;
-	int stepx,stepy,startx,starty,x3,y3;
+	float stepx,stepy,startx,starty,x3,y3,x4,y4,x5,y5;
 	int avspace;
 	char temps[5];
 
-	int delta;
+	gdPoint points[3];
+
+	struct teddata * curtteddatas=NULL;
+	struct teddata * iteddatas=NULL;
+	struct teddata * jteddatas=NULL;
+
+	float delta;
 
 	border = (int) ((bordper*tedimx)/100);
 	if (border > (bordper*tedimy)/100) border=(bordper*tedimy)/100;
@@ -581,12 +596,48 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 	startx=STEPPIXELS;
 	starty=2*border;
 
-	sprintf(temps,"t=%d",step);
+	int stepmax=3;
+	int startstep=0;
+	if (step>stepmax) {
+		startstep=step-stepmax;
+		stepmax=step;
+	}
 
-	gdImageDashedLine(*tedim,startx+(step-1)*stepx , starty ,startx+(step-1)*stepx, tedimy-starty ,red);
-	gdImageString(*tedim, gdFontGetSmall(), startx+(step-1)*stepx + border, 2*border + stepy*nodes, temps , red);
+	for (i=startstep;i<stepmax;i++) {
+		sprintf(temps,"t=%d",i+1);
+		gdImageDashedLine(*tedim,startx+(i-startstep)*stepx , starty ,startx+(i-startstep)*stepx, tedimy-starty ,red);
+		gdImageString(*tedim, gdFontGetSmall(), startx+(i-startstep)*stepx + border, 2*border + stepy*nodes, temps , red);
+	}
 
 	gdImageSetAntiAliased(*tedim, green);
+
+	for (iteddatas=(*teddatas),ii=1;(ii<stepmax)&&(iteddatas!=NULL);ii++,iteddatas=iteddatas->old) {
+		for (jteddatas=iteddatas;jteddatas!=NULL;jteddatas=jteddatas->next) {
+			i=jteddatas->i;
+			j=jteddatas->j;
+			k=jteddatas->k;
+
+			if (i!=-1) {
+
+				gdImageLine(*tedim,startx+(step-1-ii)*stepx , starty+i*stepy ,startx+(step-ii)*stepx,  starty+j*stepy ,gdAntiAliased);
+
+				delta=sqrt((j-i)*(j-i)*stepy*stepy+stepx*stepx);
+				x3=startx+(step-ii)*stepx-ARRFIX*stepx/delta;
+				y3=starty+j*stepy-ARRFIX*(j-i)*stepy/delta;
+				x4=startx+(step-ii)*stepx-((ARRFIX*(stepx+((j-i)*stepy)/FF))/delta);
+				x5=startx+(step-ii)*stepx-((ARRFIX*(stepx-((j-i)*stepy)/FF))/delta);
+				y4=starty+j*stepy-((ARRFIX*((j-i)*stepy-stepx/FF))/delta);
+				y5=starty+j*stepy-((ARRFIX*((j-i)*stepy+stepx/FF))/delta);
+				points[0].x = (int) startx+(step-ii)*stepx;
+				points[0].y = (int) starty+j*stepy;
+				points[1].x = (int) x4;
+				points[1].y = (int) y4;
+				points[2].x = (int) x5;
+				points[2].y = (int) y5;
+				gdImageFilledPolygon(*tedim, points, 3, green);
+			}
+		}
+	}
 
 	for (i=0;i<nodes;i++) {
 		for (j=0;j<nodes;j++) {
@@ -594,13 +645,53 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 				if ( *(messages+(i*nodes+j)*messtypes+k)!=*(message_defaults+k)) {
 					gdImageLine(*tedim,startx+(step-1)*stepx , starty+i*stepy ,startx+(step)*stepx,  starty+j*stepy ,gdAntiAliased);
 
-					delta=(j-i)*(j-i)*stepy*stepy+stepx*stepx;
-					x3=startx+(step)*stepx-ARRFIX*ARRFIX*stepx/delta;
-					y3=starty+j*stepy-ARRFIX*ARRFIX*(j-i)*stepy/delta;
-					gdImageArc(*tedim, x3, y3, ARRFIX/2, ARRFIX/2, 0, 360, white);
+					delta=sqrt((j-i)*(j-i)*stepy*stepy+stepx*stepx);
+					x3=startx+(step)*stepx-ARRFIX*stepx/delta;
+					y3=starty+j*stepy-ARRFIX*(j-i)*stepy/delta;
+					x4=startx+step*stepx-((ARRFIX*(stepx+((j-i)*stepy)/FF))/delta);
+					x5=startx+step*stepx-((ARRFIX*(stepx-((j-i)*stepy)/FF))/delta);
+					y4=starty+j*stepy-((ARRFIX*((j-i)*stepy-stepx/FF))/delta);
+					y5=starty+j*stepy-((ARRFIX*((j-i)*stepy+stepx/FF))/delta);
+					points[0].x = (int) startx+(step)*stepx;
+					points[0].y = (int) starty+j*stepy;
+					points[1].x = (int) x4;
+					points[1].y = (int) y4;
+					points[2].x = (int) x5;
+					points[2].y = (int) y5;
+					gdImageFilledPolygon(*tedim, points, 3, green);
+
+					iteddatas=(struct teddata *) malloc(sizeof(struct teddata));
+					iteddatas->i=i;
+					iteddatas->j=j;
+					iteddatas->k=k;
+					iteddatas->next=NULL;
+					iteddatas->old=NULL;
+
+					if (curtteddatas==NULL) {
+						curtteddatas=iteddatas;
+					} else {
+						iteddatas->next=curtteddatas;
+						curtteddatas=iteddatas;
+					}
 				}
 			}
 		}
+	}
+
+	if (curtteddatas==NULL) {
+		curtteddatas=(struct teddata *) malloc(sizeof(struct teddata));
+		curtteddatas->i=-1;
+		curtteddatas->j=-1;
+		curtteddatas->k=-1;
+		curtteddatas->next=NULL;
+		curtteddatas->old=NULL;
+	}
+
+	if (*teddatas == NULL) {
+		*teddatas=curtteddatas;
+	} else {
+		curtteddatas->old=(*teddatas);
+		*teddatas=curtteddatas;
 	}
 }
 
@@ -707,6 +798,7 @@ int main( int argc, char* argv[] )
 	gdImagePtr tedim;
 	FILE * tedout;
 	int tedimx, tedimy;
+	struct teddata * teddatas=NULL;
 
 	///// Program start
 
@@ -1189,14 +1281,6 @@ int main( int argc, char* argv[] )
 	char * filen;
 	filen = malloc(50*sizeof(char));
 
-	if (ted) {
-		tedimx=1024;
-		tedimy=768;
-		tedim = gdImageCreateTrueColor(tedimx,tedimy);
-		default_layout(&tedim,tedimx,tedimy);
-		nodes_layout(&tedim,tedimx,tedimy, ithnode, nodes);
-	}
-
 	// Main simulation cycle
 	for (l=1;l<sim_time;l++) {
 
@@ -1263,8 +1347,18 @@ int main( int argc, char* argv[] )
 		}
 
 		if (ted) {
-			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,l);
-		}
+			tedimx=1024;
+			tedimy=768;
+			tedim = gdImageCreateTrueColor(tedimx,tedimy);
+			default_layout(&tedim,tedimx,tedimy);
+			nodes_layout(&tedim,tedimx,tedimy, ithnode, nodes);
+			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,l,&teddatas);
+			sprintf(filen,"tedfile%04d.png",l);
+			tedout=fopen(filen,"wb");
+			gdImagePng(tedim,tedout);
+			fclose(tedout);
+			gdImageDestroy(tedim);
+ 		}
 
 		if (err != CL_SUCCESS)
 		{
@@ -1319,13 +1413,7 @@ int main( int argc, char* argv[] )
 	if (lua_check_report(L, "TIME_COMPLEXITY") == 1) printf("Time Complexity: %d\n",l);
 	if (lua_check_report(L, "MESSAGE_COMPLEXITY") == 1) printf("Message Complexity: %ld\n",messcompl);
 
-	if (ted) {
-		tedout=fopen("ted.png","wb");
-		gdImagePng(tedim,tedout);
-		fclose(tedout);
-		gdImageDestroy(tedim);
-	}
- 
+
 	// release OpenCL resources
 	clReleaseMemObject(d_links);
 	clReleaseMemObject(d_states);

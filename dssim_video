@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ARGS=$(getopt -o i:g:p:f:hoT: -n "dssim_video" -- "$@");
+ARGS=$(getopt -o i:g:p:f:hoeT: -n "dssim_video" -- "$@");
 
 #Bad arguments
 if [ $? -ne 0 ];
@@ -16,6 +16,7 @@ graph=""
 proto=""
 frame=""
 helpp=""
+vtype="-o"
 
 PARAMETERS=""
 
@@ -64,6 +65,10 @@ while true; do
 	    helpp="true"
 	    shift;
 	    ;;
+	  -e)
+	    vtype="-e"
+	    shift;
+	    ;;
 	  -o)
 	    shift;
 	    ;;
@@ -99,8 +104,8 @@ then
 	exit 1
 fi
 
-./dssim $PARAMETERS -o > /dev/null 2>&1
-if [ -e outfile0001.png ]
+./dssim $PARAMETERS $vtype > /dev/null 2>&1
+if [ -e outfile0001.png ] || [ -e tedfile0001.png ]
 then
 	FILENAME=$RANDOM""videoout.avi
 	if [[ "a$frame" == "a" ]]

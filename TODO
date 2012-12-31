@@ -2,6 +2,7 @@
 ###
 ############## TODO  list ##############
 ###
+#High	- Complete ted videos
 #High	- Improve name traslation for clocks
 #High	- Include controls on save_kernel
 #High	- Finalize the OpenCL platform and device managment
