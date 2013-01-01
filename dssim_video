@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ARGS=$(getopt -o i:g:p:f:hoeT: -n "dssim_video" -- "$@");
+ARGS=$(getopt -o i:g:p:f:hbt:oeT: -n "dssim_video" -- "$@");
 
 #Bad arguments
 if [ $? -ne 0 ];
@@ -15,7 +15,9 @@ initf=""
 graph=""
 proto=""
 frame=""
+simti=""
 helpp=""
+bypas=""
 vtype="-o"
 
 PARAMETERS=""
@@ -53,6 +55,14 @@ while true; do
 	      shift;
 	    fi
 	    ;;
+	  -t)
+	    shift;
+	    if [ -n "$1" ]; then
+	      simti=$1
+	      shift;
+	    fi
+	    PARAMETERS="$PARAMETERS -t $simti"
+	    ;;
 	  -T)
 	    shift;
 	    if [ -n "$1" ]; then
@@ -63,6 +73,11 @@ while true; do
 	    ;;
 	  -h)
 	    helpp="true"
+	    shift;
+	    ;;
+	  -b)
+	    bypas="true"
+	    PARAMETERS="$PARAMETERS -b"
 	    shift;
 	    ;;
 	  -e)
@@ -104,6 +119,7 @@ then
 	exit 1
 fi
 
+rm -f *png $FILENAME  > /dev/null 2>&1
 ./dssim $PARAMETERS $vtype > /dev/null 2>&1
 if [ -e outfile0001.png ] || [ -e tedfile0001.png ]
 then
@@ -115,6 +131,6 @@ then
 		mencoder "mf://*.png" -mf fps=$frame -o $FILENAME -ovc lavc -lavcopts vcodec=msmpeg4v2:vbitrate=800 > /dev/null 2>&1
 	fi
 	mplayer -fs $FILENAME  > /dev/null 2>&1
-	rm -f outfile*png $FILENAME  > /dev/null 2>&1
+	rm -f *png $FILENAME  > /dev/null 2>&1
 fi
 

@@ -12,9 +12,9 @@
 
 #define MAX_SOURCE_SIZE (0x100000)
 #define BORDERPERCENT 2
-#define STEPPIXELS 100
+#define STEPS 10.0
 #define ARRFIX 10.0
-#define FF 4.0
+#define ARRFF 4.0
 
 #include "transformer.c"
 
@@ -479,7 +479,7 @@ void usage()
 	printf("\t\t-g file  - Select the graph description file (graphviz dot file)\n");
 	printf("\t\t-i file  - Select the initialization file\n");
 	printf("\t\t-s file  - Save the created kernel as file\n");
-	printf("\t\t-t file  - Set the simulation time (default 10000)\n");
+	printf("\t\t-t time  - Set the simulation time (default 1000)\n");
 	printf("\t\t-o       - Generate a PNG with a graph for each simulation step\n");
 	printf("\t\t-e       - Generate a PNG with a TED chart for each simulation step\n");
 	printf("\t\t-T type  - Select Graphviz rendering: \"dot\", \"neato\" or \"gtk\"\n");
@@ -539,7 +539,7 @@ void default_layout(gdImagePtr * tedim, int tedimx, int tedimy)
 	gdImageLine(*tedim,border,border,border,tedimy-border,white);
 }
 
-void nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnode,int nodes)
+int nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnode,int nodes)
 {
 	int i;
 
@@ -548,6 +548,7 @@ void nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnod
 	int bordper=BORDERPERCENT;
 	int step;
 	int avspace;
+	int maxlen;
 
 	border = (int) ((bordper*tedimx)/100);
 	if (border > (bordper*tedimy)/100) border=(bordper*tedimy)/100;
@@ -557,13 +558,22 @@ void nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnod
 	avspace=tedimy-4*border;
 	step=avspace/(nodes);
 
+	maxlen=0;
+	for (i=0;i<nodes;i++) {
+		if (strlen((*(ithnode+i))->name) > maxlen) {
+			maxlen=strlen((*(ithnode+i))->name);
+		}
+	}
+
 	for (i=0;i<nodes;i++) {
 		gdImageString(*tedim, gdFontGetSmall(),2*border,(2*border+i*step)- gdFontGetSmall()->h / 2 ,(*(ithnode+i))->name, white);
-		gdImageLine(*tedim,3*border + (strlen((*(ithnode+i))->name) * gdFontGetSmall()->w) , (2*border+i*step) ,tedimx-2*border,(2*border+i*step) ,white);
+		gdImageLine(*tedim,3*border + maxlen * gdFontGetSmall()->w, (2*border+i*step) ,tedimx-2*border,(2*border+i*step) ,white);
 	}
+
+	return 3*border + maxlen * gdFontGetSmall()->w;
 }
 
-void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int * message_defaults, int nodes, int messtypes,int step,struct teddata ** teddatas)
+void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int * message_defaults, int nodes, int messtypes,int step,struct teddata ** teddatas, int startdrawx)
 {
 	int i,j,k,ii;
 
@@ -590,28 +600,30 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 	green = gdImageColorAllocate(*tedim,0,255,0);
 
 	avspace=tedimy-4*border;
-	stepx=STEPPIXELS;
+	stepx=(tedimx-2*border-startdrawx)/STEPS;
 	stepy=avspace/(nodes);
 
-	startx=STEPPIXELS;
+	startx=startdrawx;
 	starty=2*border;
 
-	int stepmax=3;
+	int stepmax=STEPS;
 	int startstep=0;
 	if (step>stepmax) {
 		startstep=step-stepmax;
 		stepmax=step;
 	}
 
-	for (i=startstep;i<stepmax;i++) {
+	for (;step>STEPS;step--) {}
+
+	for (i=startstep;i<=stepmax;i++) {
 		sprintf(temps,"t=%d",i+1);
 		gdImageDashedLine(*tedim,startx+(i-startstep)*stepx , starty ,startx+(i-startstep)*stepx, tedimy-starty ,red);
-		gdImageString(*tedim, gdFontGetSmall(), startx+(i-startstep)*stepx + border, 2*border + stepy*nodes, temps , red);
+		if (i!=stepmax) gdImageString(*tedim, gdFontGetSmall(), startx+(i-startstep)*stepx + border, 2*border + stepy*nodes, temps , red);
 	}
 
 	gdImageSetAntiAliased(*tedim, green);
 
-	for (iteddatas=(*teddatas),ii=1;(ii<stepmax)&&(iteddatas!=NULL);ii++,iteddatas=iteddatas->old) {
+	for (iteddatas=(*teddatas),ii=1;(ii<STEPS)&&(iteddatas!=NULL);ii++,iteddatas=iteddatas->old) {
 		for (jteddatas=iteddatas;jteddatas!=NULL;jteddatas=jteddatas->next) {
 			i=jteddatas->i;
 			j=jteddatas->j;
@@ -624,10 +636,10 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 				delta=sqrt((j-i)*(j-i)*stepy*stepy+stepx*stepx);
 				x3=startx+(step-ii)*stepx-ARRFIX*stepx/delta;
 				y3=starty+j*stepy-ARRFIX*(j-i)*stepy/delta;
-				x4=startx+(step-ii)*stepx-((ARRFIX*(stepx+((j-i)*stepy)/FF))/delta);
-				x5=startx+(step-ii)*stepx-((ARRFIX*(stepx-((j-i)*stepy)/FF))/delta);
-				y4=starty+j*stepy-((ARRFIX*((j-i)*stepy-stepx/FF))/delta);
-				y5=starty+j*stepy-((ARRFIX*((j-i)*stepy+stepx/FF))/delta);
+				x4=startx+(step-ii)*stepx-((ARRFIX*(stepx+((j-i)*stepy)/ARRFF))/delta);
+				x5=startx+(step-ii)*stepx-((ARRFIX*(stepx-((j-i)*stepy)/ARRFF))/delta);
+				y4=starty+j*stepy-((ARRFIX*((j-i)*stepy-stepx/ARRFF))/delta);
+				y5=starty+j*stepy-((ARRFIX*((j-i)*stepy+stepx/ARRFF))/delta);
 				points[0].x = (int) startx+(step-ii)*stepx;
 				points[0].y = (int) starty+j*stepy;
 				points[1].x = (int) x4;
@@ -648,10 +660,10 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 					delta=sqrt((j-i)*(j-i)*stepy*stepy+stepx*stepx);
 					x3=startx+(step)*stepx-ARRFIX*stepx/delta;
 					y3=starty+j*stepy-ARRFIX*(j-i)*stepy/delta;
-					x4=startx+step*stepx-((ARRFIX*(stepx+((j-i)*stepy)/FF))/delta);
-					x5=startx+step*stepx-((ARRFIX*(stepx-((j-i)*stepy)/FF))/delta);
-					y4=starty+j*stepy-((ARRFIX*((j-i)*stepy-stepx/FF))/delta);
-					y5=starty+j*stepy-((ARRFIX*((j-i)*stepy+stepx/FF))/delta);
+					x4=startx+step*stepx-((ARRFIX*(stepx+((j-i)*stepy)/ARRFF))/delta);
+					x5=startx+step*stepx-((ARRFIX*(stepx-((j-i)*stepy)/ARRFF))/delta);
+					y4=starty+j*stepy-((ARRFIX*((j-i)*stepy-stepx/ARRFF))/delta);
+					y5=starty+j*stepy-((ARRFIX*((j-i)*stepy+stepx/ARRFF))/delta);
 					points[0].x = (int) startx+(step)*stepx;
 					points[0].y = (int) starty+j*stepy;
 					points[1].x = (int) x4;
@@ -1347,12 +1359,13 @@ int main( int argc, char* argv[] )
 		}
 
 		if (ted) {
+			int startdrawx;
 			tedimx=1024;
 			tedimy=768;
 			tedim = gdImageCreateTrueColor(tedimx,tedimy);
 			default_layout(&tedim,tedimx,tedimy);
-			nodes_layout(&tedim,tedimx,tedimy, ithnode, nodes);
-			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,l,&teddatas);
+			startdrawx=nodes_layout(&tedim,tedimx,tedimy, ithnode, nodes);
+			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,l,&teddatas,startdrawx);
 			sprintf(filen,"tedfile%04d.png",l);
 			tedout=fopen(filen,"wb");
 			gdImagePng(tedim,tedout);

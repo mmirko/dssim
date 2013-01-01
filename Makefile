@@ -58,6 +58,9 @@ flooding_hypercube:
 	@ $(MAKE) --no-print-directory -r -C flooding_hypercube
 
 .PHONY: regression
-regression:
+regression: dssim
+	@ $(MAKE) --no-print-directory -r -C flooding_early_lattice regression
+	@ $(MAKE) --no-print-directory -r -C flooding_early_tree4 regression
+	@ $(MAKE) --no-print-directory -r -C flooding_mid_lattice regression
 	@ $(MAKE) --no-print-directory -r -C flooding_lattice regression
 	@ $(MAKE) --no-print-directory -r -C flooding_hypercube regression

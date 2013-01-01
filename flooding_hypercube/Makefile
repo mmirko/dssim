@@ -29,11 +29,17 @@ dssim:
 	@ ln -sf ../dssim_gen dssim_gen
 	@ ln -sf ../dssim_video dssim_video
 
-.phony: video
-video: dssim
+.phony: video-graph
+video-graph: dssim
 	@ ./dssim_video -i flooding4.init -p flooding -g 4cube.dot
 	@ ./dssim_video -i flooding5.init -p flooding -g 5cube.dot
 	@ ./dssim_video -i flooding6.init -p flooding -g 6cube.dot
+
+.phony: video-ted
+video-ted: dssim
+	@ ./dssim_video -i flooding4.init -p flooding -g 4cube.dot -e
+	@ ./dssim_video -i flooding5.init -p flooding -g 5cube.dot -e
+	@ ./dssim_video -i flooding6.init -p flooding -g 6cube.dot -e
 
 .phony: regression
 regression: dssim

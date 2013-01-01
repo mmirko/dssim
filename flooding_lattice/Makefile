@@ -29,9 +29,13 @@ dssim:
 	@ ln -sf ../dssim_gen dssim_gen
 	@ ln -sf ../dssim_video dssim_video
 
-.phony: video
-video: dssim
+.phony: video-graph
+video-graph: dssim
 	@ ./dssim_video -i flooding.init -p flooding -g lattice10.dot -T neato
+
+.phony: video-ted
+video-ted: dssim
+	@ ./dssim_video -i flooding.init -p flooding -g lattice10.dot -e
 
 .phony: regression
 regression: dssim

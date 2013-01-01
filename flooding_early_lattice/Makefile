@@ -21,11 +21,28 @@ all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png *.avi dssim dssim_gen dssim_video transformer.c outfile*
+	@ rm -f *.o *.png *.avi *.tmp dssim dssim_gen dssim_video transformer.c outfile*
 
 .phony: dssim
 dssim:
-	ln -sf ../dssim dssim
-	ln -sf ../dssim_gen dssim_gen
-	ln -sf ../dssim_video dssim_video
+	@ ln -sf ../dssim dssim
+	@ ln -sf ../dssim_gen dssim_gen
+	@ ln -sf ../dssim_video dssim_video
+
+.phony: videog-graph
+video-graph: dssim
+	@ ./dssim_video -i floodingearly.init -p floodingearly -g lattice10.dot -T neato -o -b -t 100
+
+.phony: video-ted
+video-ted: dssim
+	@ ./dssim_video -i floodingearly.init -p floodingearly -g lattice10.dot -e -b -t 100
+
+.phony: regression
+regression: dssim
+	@ ./dssim -i floodingearly.init -p floodingearly -g lattice10.dot -b > regression.tmp
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> flooding_early_lattice" ) || echo "FAIL -> flooding_early_lattice"
+
+.phony: regression-update
+regression-update: dssim
+	@ ./dssim -i floodingearly.init -p floodingearly -g lattice10.dot -b > regression.dat
 

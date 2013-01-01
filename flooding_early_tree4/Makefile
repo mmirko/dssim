@@ -21,11 +21,28 @@ all: dssim
 
 .phony: clean
 clean:
-	rm -f *.o *.png *.avi dssim dssim_gen dssim_video transformer.c outfile*
+	@ rm -f *.o *.png *.avi *.tmp dssim dssim_gen dssim_video transformer.c outfile*
 
 .phony: dssim
 dssim:
-	ln -sf ../dssim dssim
-	ln -sf ../dssim_gen dssim_gen
-	ln -sf ../dssim_video dssim_video
+	@ ln -sf ../dssim dssim
+	@ ln -sf ../dssim_gen dssim_gen
+	@ ln -sf ../dssim_video dssim_video
+
+.phony: videog-graph
+video-graph: dssim
+	@ ./dssim_video -i floodingearly.init -p floodingearly -g tree4.dot -o -b -t 20
+
+.phony: video-ted
+video-ted: dssim
+	@ ./dssim_video -i floodingearly.init -p floodingearly -g tree4.dot -e -b -t 20
+
+.phony: regression
+regression: dssim
+	@ ./dssim -i floodingearly.init -p floodingearly -g tree4.dot -b > regression.tmp
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> flooding_early_tree4" ) || echo "FAIL -> flooding_early_tree4"
+
+.phony: regression-update
+regression-update: dssim
+	@ ./dssim -i floodingearly.init -p floodingearly -g tree4.dot -b > regression.dat
 
