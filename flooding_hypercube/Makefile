@@ -33,7 +33,6 @@ dssim:
 video-graph: dssim
 	@ ./dssim_video -i flooding4.init -p flooding -g 4cube.dot
 	@ ./dssim_video -i flooding5.init -p flooding -g 5cube.dot
-	@ ./dssim_video -i flooding6.init -p flooding -g 6cube.dot
 
 .phony: video-ted
 video-ted: dssim

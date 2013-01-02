@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ARGS=$(getopt -o i:g:p:f:hbt:oeT: -n "dssim_video" -- "$@");
+ARGS=$(getopt -o i:g:p:f:hvbt:oeT: -n "dssim_video" -- "$@");
 
 #Bad arguments
 if [ $? -ne 0 ];
@@ -78,6 +78,9 @@ while true; do
 	  -b)
 	    bypas="true"
 	    PARAMETERS="$PARAMETERS -b"
+	    shift;
+	    ;;
+	  -v)
 	    shift;
 	    ;;
 	  -e)
