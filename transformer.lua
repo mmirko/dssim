@@ -150,6 +150,12 @@ function resolve_action(mat,act)
 	return result
 end
 
+-- Create a single action for a program
+function action_program(mat,act)
+	result=act
+	return result
+end
+	
 -- The entity logic
 function create_actions()
 	result=''
@@ -161,7 +167,11 @@ function create_actions()
 			result=result..'(flag_'..string.lower(v1)..'==YES)'
 		end
 		result=result..') {<<<CR>>>'
-		result=result..resolve_action(k,v)
+		if type(v) == 'table' then
+			result=result..resolve_action(k,v)
+		elseif type(v) == 'string' then
+			result=result..action_program(k,v)
+		end
 		result=result..'\t\t}<<<CR>>><<<CR>>>'
 	end
 	return result
