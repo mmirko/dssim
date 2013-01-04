@@ -152,7 +152,24 @@ end
 
 -- Create a single action for a program
 function action_program(mat,act)
-	result=act
+	result=''
+	newact = act
+
+	-- Cleaning cr, tabs and multiple space
+	newact=string.gsub(newact, '<<<CR>>>+', ' ')
+	newact=string.gsub(newact, '\t+', ' ')
+	newact=string.gsub(newact, ' +', ' ')
+	newact=string.gsub(newact, '^ ', '')
+	newact=string.gsub(newact, ' $', '')
+
+	-- start matching
+
+	-- match a set operation
+	ex,_,reg,val=string.find(newact, '^set (%a+) *= *(%a+);$')
+	if ex~=nil then
+		result=result..'\t\t\tstates[nid*registers+REG_'..reg..']='..reg..'_'..val..';<<<CR>>>'
+	end
+	
 	return result
 end
 	
