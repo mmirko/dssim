@@ -4,8 +4,20 @@ options = { "RESET_MESS" }
 actions = {}
 actions[{"STATE_INIT","IMPULSE_YES"}] = { {"set", "STATE_DONE"} , { "send","BROADCAST_SENT","NEIGHBORS" } }
 actions[{"STATE_IDLE","BROADCAST_SENT"}] = { {"set", "STATE_DONE"} , { "send","BROADCAST_SENT","NEIGHBORS" } }
-actions[{"STATE_DONE","BROADCAST_SENT"}] = { {"set", "STATE_IDLE"} }
+--actions[{"STATE_DONE","BROADCAST_SENT"}] = { {"set", "STATE_IDLE"} }
 
---actions[{"STATE_DONE","BROADCAST_SENT"}] =	[[
---							set  STATE=IDLE;
---					   	]]
+actions[{"STATE_DONE","BROADCAST_SENT"}] =	[[
+							set STATE=DONE;
+							set STATE=IDLE;
+					   	]]
+-- Tests
+
+-- for i in NEIGHBORS do
+--     send BROADCAST_SEND to i
+-- end
+
+-- for i in NEIGHBORS do
+--   if labelto(i) < labelfrom(sender) then
+--     exitexitsend BROADCAST_SEND to i
+--   end
+-- end

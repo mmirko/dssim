@@ -165,14 +165,20 @@ function action_program(mat,act)
 	-- start matching
 
 	-- match a set operation
-	ex,_,reg,val=string.find(newact, '^set (%a+) *= *(%a+);$')
+	ex,_,reg,val=string.find(newact, '^set (%a+) *= *(%a+)$')
 	if ex~=nil then
 		result=result..'\t\t\tstates[nid*registers+REG_'..reg..']='..reg..'_'..val..';<<<CR>>>'
 	end
-	
+
+	-- Nothing else matches so trying to split by ;
+	for comm in string.gmatch(newact,'([^;]+);') do
+		result=result..action_program(mat,comm)
+	end
+
 	return result
 end
-	
+
+
 -- The entity logic
 function create_actions()
 	result=''
