@@ -2,4 +2,5 @@ dofile 'broadcast'
 dofile 'broadcast.init'
 dofile 'transformer.lua'
 
-print(name_to_id("IMPULSE_NO"))
+--print(action_program({"STATE_DONE","BROADCAST_SENT"},"set STATE=DONE; set STATE=IDLE;"))
+print(string.gsub(create_actions(),"<<<CR>>>","\n"))

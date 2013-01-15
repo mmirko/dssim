@@ -152,8 +152,8 @@ end
 
 -- Create a single action for a program
 function action_program(mat,act)
-	result=''
-	newact = act
+	local result=''
+	local newact = act
 
 	-- Cleaning cr, tabs and multiple space
 	newact=string.gsub(newact, '<<<CR>>>+', ' ')
@@ -168,6 +168,7 @@ function action_program(mat,act)
 	ex,_,reg,val=string.find(newact, '^set (%a+) *= *(%a+)$')
 	if ex~=nil then
 		result=result..'\t\t\tstates[nid*registers+REG_'..reg..']='..reg..'_'..val..';<<<CR>>>'
+		return result,'trad'
 	end
 
 	-- Nothing else matches so trying to split by ;
@@ -175,13 +176,13 @@ function action_program(mat,act)
 		result=result..action_program(mat,comm)
 	end
 
-	return result
+	return result,'trad'
 end
 
 
 -- The entity logic
 function create_actions()
-	result=''
+	local result=''
 
 	for k,v in pairs(actions) do
 		result=result..'\t\tif ('
@@ -193,7 +194,8 @@ function create_actions()
 		if type(v) == 'table' then
 			result=result..resolve_action(k,v)
 		elseif type(v) == 'string' then
-			result=result..action_program(k,v)
+			rresult,rtype=action_program(k,v)
+			result=result..rresult
 		end
 		result=result..'\t\t}<<<CR>>><<<CR>>>'
 	end
@@ -203,7 +205,7 @@ end
 
 -- The option that go after the entity activity
 function footer_options()
-	result=''
+	local result=''
 
 	for k,v in ipairs(options) do
 		if v == 'RESET_MESS' then
@@ -221,7 +223,7 @@ function footer_options()
 end
 
 function footer()
-	result=''
+	local result=''
 	result=result..'\t}<<<CR>>>'
 	result=result..'}<<<CR>>>'
 	return result
