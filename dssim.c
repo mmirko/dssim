@@ -1061,9 +1061,15 @@ int main( int argc, char* argv[] )
 		// Find out the number of messages types
 		lua_getglobal(L, "transformer");
 		lua_pushstring(L,protocol_file);
-		lua_call(L,1,1);
+		lua_call(L,1,2);
 
-		kernelSource=strdup(lua_tostring(L, -1));
+		if (lua_isnil(L,-1)) {
+			fprintf(stderr, "Transformer has failed with the following message: %s\n",lua_tostring(L, -2));
+			shutdown(gvc,dsgraph,L);
+		}
+
+		kernelSource=strdup(lua_tostring(L, -2));
+		lua_pop(L,1);
 		lua_pop(L,1);
 		entity=protocol_file;
 

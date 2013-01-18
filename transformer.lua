@@ -155,6 +155,12 @@ function action_program(mat,act)
 	local result=''
 	local newact = act
 
+	local iresult
+	local itype
+
+	local match1
+	local match2
+
 	-- Cleaning cr, tabs and multiple space
 	newact=string.gsub(newact, '<<<CR>>>+', ' ')
 	newact=string.gsub(newact, '\t+', ' ')
@@ -164,16 +170,38 @@ function action_program(mat,act)
 
 	-- start matching
 
-	-- match a set operation
-	ex,_,reg,val=string.find(newact, '^set (%a+) *= *(%a+)$')
+	-- match an alfadecimal
+	ex,_,val=string.find(newact, '^(%a+)$')
 	if ex~=nil then
-		result=result..'\t\t\tstates[nid*registers+REG_'..reg..']='..reg..'_'..val..';<<<CR>>>'
+		result=result..val
+		return result,'trad'
+	end
+
+	-- match a set operation
+	ex,_,match1,match2=string.find(newact, '^set (%a+) *= *(%a+)$')
+	if ex~=nil then
+--		regi,regitype=action_program(mat,reg)
+--		if regitype==nil then
+--			return regi,nil
+--		end
+--
+--		vali,valitype=action_program(mat,val)
+--		if valitype==nil then
+--			return vali,nil
+--		end
+
+		result=result..'\t\t\tstates[nid*registers+REG_'..match1..']='..match1..'_'..match2..';<<<CR>>>'
 		return result,'trad'
 	end
 
 	-- Nothing else matches so trying to split by ;
 	for comm in string.gmatch(newact,'([^;]+);') do
-		result=result..action_program(mat,comm)
+		iresult,itype=action_program(mat,comm)
+		if itype==nil then
+			return iresult,nil
+		else
+			result=result..iresult
+		end
 	end
 
 	return result,'trad'
@@ -183,6 +211,8 @@ end
 -- The entity logic
 function create_actions()
 	local result=''
+	local rresult=''
+	local rtype=''
 
 	for k,v in pairs(actions) do
 		result=result..'\t\tif ('
@@ -195,11 +225,16 @@ function create_actions()
 			result=result..resolve_action(k,v)
 		elseif type(v) == 'string' then
 			rresult,rtype=action_program(k,v)
-			result=result..rresult
+
+			if rtype~=nil then
+				result=result..rresult
+			else
+				return rresult,nil
+			end
 		end
 		result=result..'\t\t}<<<CR>>><<<CR>>>'
 	end
-	return result
+	return result,'ok'
 end
 
 
@@ -237,6 +272,9 @@ end
 
 -- The main lus function, it takes the protocol name and create the kernel data
 function transformer(protocol_name)
+	local result=''
+	local rtype=''
+
 	opencl_kernel=common_headers
 	opencl_kernel=opencl_kernel..defines()
 	opencl_kernel=opencl_kernel..prototype(protocol_name)
@@ -294,11 +332,17 @@ function transformer(protocol_name)
 --		opencl_kernel=opencl_kernel..'<<<CR>>>'
 --	end
 
-	opencl_kernel=opencl_kernel..create_actions()
+	result,rtype=create_actions()
+
+	if rtype~=nil then
+		opencl_kernel=opencl_kernel..result
+	else
+		return result,nil
+	end
 
 	opencl_kernel=opencl_kernel..footer_options()
 	opencl_kernel=opencl_kernel..footer()
-	return opencl_kernel
+	return opencl_kernel,'ok'
 end
 
 -- Gets the number of registers, it is used to transfer this value to dssim
