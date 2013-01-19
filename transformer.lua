@@ -171,26 +171,38 @@ function action_program(mat,act)
 	-- start matching
 
 	-- match an alfadecimal
-	ex,_,val=string.find(newact, '^(%a+)$')
+	ex,_,match1=string.find(newact, '^(%a+)$')
 	if ex~=nil then
-		result=result..val
+		for k, _ in pairs(registers) do
+			if match1==k then
+				result=result..match1
+				return result,'register'
+			end
+		end
+
+		result=result..match1
 		return result,'trad'
 	end
 
 	-- match a set operation
 	ex,_,match1,match2=string.find(newact, '^set (%a+) *= *(%a+)$')
 	if ex~=nil then
---		regi,regitype=action_program(mat,reg)
---		if regitype==nil then
---			return regi,nil
---		end
---
---		vali,valitype=action_program(mat,val)
---		if valitype==nil then
---			return vali,nil
---		end
+		local regi
+		local vali
 
-		result=result..'\t\t\tstates[nid*registers+REG_'..match1..']='..match1..'_'..match2..';<<<CR>>>'
+		regi,itype=action_program(mat,match1)
+		if itype==nil then
+			return regi,nil
+		elseif itype~='register' then
+			return match1..' is not a register.',nil
+		end
+
+		vali,itype=action_program(mat,match2)
+		if itype==nil then
+			return vali,nil
+		end
+
+		result=result..'\t\t\tstates[nid*registers+REG_'..regi..']='..regi..'_'..vali..';<<<CR>>>'
 		return result,'trad'
 	end
 
