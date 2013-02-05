@@ -40,7 +40,7 @@ video-ted: dssim
 .phony: regression
 regression: dssim
 	@ ./dssim -i flooding.init -p flooding -g lattice10.dot > regression.tmp
-	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> flooding-lattice" ) || echo "FAIL -> flooding-lattice"
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> flooding_lattice" ) || echo "FAIL -> flooding_lattice"
 
 .phony: regression-update
 regression-update: dssim

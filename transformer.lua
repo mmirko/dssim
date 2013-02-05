@@ -170,6 +170,13 @@ function action_program(mat,act)
 
 	-- start matching
 
+	-- match an integer
+	ex,_,match1=string.find(newact, '^(%d+)$')
+	if ex~=nil then
+		result=result..match1
+		return result,'integer'
+	end
+
 	-- match an alfadecimal
 	ex,_,match1=string.find(newact, '^(%a+)$')
 	if ex~=nil then
@@ -180,6 +187,8 @@ function action_program(mat,act)
 			end
 		end
 
+
+-- Temporary return a trad later to be replace by every case
 		result=result..match1
 		return result,'trad'
 	end
@@ -195,6 +204,28 @@ function action_program(mat,act)
 			return regi,nil
 		elseif itype~='register' then
 			return match1..' is not a register.',nil
+		end
+
+		vali,itype=action_program(mat,match2)
+		if itype==nil then
+			return vali,nil
+		end
+
+		result=result..'\t\t\tstates[nid*registers+REG_'..regi..']='..regi..'_'..vali..';<<<CR>>>'
+		return result,'trad'
+	end
+
+	-- match a send operation
+	ex,_,match1,match2=string.find(newact, '^send (%a+) *to *(%a+)$')
+	if ex~=nil then
+		local regi
+		local vali
+
+		regi,itype=action_program(mat,match1)
+		if itype==nil then
+			return regi,nil
+		elseif itype~='messtype' then
+			return match1..' is not a message type.',nil
 		end
 
 		vali,itype=action_program(mat,match2)

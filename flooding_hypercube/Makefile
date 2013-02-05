@@ -45,7 +45,7 @@ regression: dssim
 	@ ./dssim -i flooding4.init -p flooding -g 4cube.dot > regression.tmp
 	@ ./dssim -i flooding5.init -p flooding -g 5cube.dot >> regression.tmp
 	@ ./dssim -i flooding6.init -p flooding -g 6cube.dot >> regression.tmp
-	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> flooding-hypercube" ) || echo "FAIL -> flooding-hypercube"
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> flooding_hypercube" ) || echo "FAIL -> flooding_hypercube"
 
 .phony: regression-update
 regression-update: dssim
