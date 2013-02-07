@@ -112,44 +112,6 @@ function split(str, pat)
    return t
 end
 
--- Create a single action
-function resolve_action(mat,act)
-	result=''
-	for vv,atom in ipairs(act) do
-		if atom[1] == 'set' then
-			splcomm=split(atom[2],'_')
-			reg=splcomm[1]
-			val=splcomm[2]
-			result=result..'\t\t\tstates[nid*registers+REG_'..reg..']='..reg..'_'..val..';<<<CR>>><<<CR>>>'
-		elseif atom[1] == 'send' then
-			splcomm=split(atom[2],'_')
-			mtype=splcomm[1]
-			val=splcomm[2]
-			dest=atom[3]
-
-			if dest=='NEIGHBORS' then
-
-				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
-				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
-				result=result..'\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..val..';<<<CR>>>'
-				result=result..'\t\t\t\t}<<<CR>>>'
-				result=result..'\t\t\t}<<<CR>>>'
-			end
-
-			if dest=='NOTSENDERS' then
-				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
-				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
-				result=result..'\t\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..mtype..']!='..mtype..'_'..val..') {<<<CR>>>'
-				result=result..'\t\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..val..';<<<CR>>>'
-				result=result..'\t\t\t\t\t}<<<CR>>>'
-				result=result..'\t\t\t\t}<<<CR>>>'
-				result=result..'\t\t\t}<<<CR>>>'
-			end
-		end
-	end
-	return result
-end
-
 -- Create a single action for a program
 function action_program(mat,act)
 	local result=''
@@ -160,6 +122,7 @@ function action_program(mat,act)
 
 	local match1
 	local match2
+	local match3
 
 	-- Cleaning cr, tabs and multiple space
 	newact=string.gsub(newact, '<<<CR>>>+', ' ')
@@ -185,7 +148,22 @@ function action_program(mat,act)
 				result=result..match1
 				return result,'register'
 			end
+		for k, _ in pairs(messtypes) do
+			if match1==k then
+				result=result..match1
+				return result,'messtype'
+			end
 		end
+
+		if match1=='NEIGHBORS' then
+			result=result..match1
+			return result,'builtin_list'
+		elseif match1=='NOTSENDERS' then
+			result=result..match1
+			return result,'builtin_list'
+		end
+
+	end
 
 
 -- Temporary return a trad later to be replace by every case
@@ -194,7 +172,7 @@ function action_program(mat,act)
 	end
 
 	-- match a set operation
-	ex,_,match1,match2=string.find(newact, '^set (%a+) *= *(%a+)$')
+	ex,_,match1,match2=string.find(newact, '^set *(%a+) *= *(%a+)$')
 	if ex~=nil then
 		local regi
 		local vali
@@ -216,12 +194,13 @@ function action_program(mat,act)
 	end
 
 	-- match a send operation
-	ex,_,match1,match2=string.find(newact, '^send (%a+) *to *(%a+)$')
+	ex,_,match1,match2,match3=string.find(newact, '^send *(%a+) *= *(%a+) *to *(%a+)$')
 	if ex~=nil then
-		local regi
+		local mtype
 		local vali
+		local dest
 
-		regi,itype=action_program(mat,match1)
+		mtype,itype=action_program(mat,match1)
 		if itype==nil then
 			return regi,nil
 		elseif itype~='messtype' then
@@ -233,7 +212,31 @@ function action_program(mat,act)
 			return vali,nil
 		end
 
-		result=result..'\t\t\tstates[nid*registers+REG_'..regi..']='..regi..'_'..vali..';<<<CR>>>'
+		dest,itype=action_program(mat,match3)
+		if itype==nil then
+			return vali,nil
+		elseif itype=='builtin_list' then
+			if dest=='NEIGHBORS' then
+
+				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
+				result=result..'\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..vali..';<<<CR>>>'
+				result=result..'\t\t\t\t}<<<CR>>>'
+				result=result..'\t\t\t}<<<CR>>>'
+			end
+
+			if dest=='NOTSENDERS' then
+				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
+				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
+				result=result..'\t\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..mtype..']!='..mtype..'_'..vali..') {<<<CR>>>'
+				result=result..'\t\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..vali..';<<<CR>>>'
+				result=result..'\t\t\t\t\t}<<<CR>>>'
+				result=result..'\t\t\t\t}<<<CR>>>'
+				result=result..'\t\t\t}<<<CR>>>'
+			end
+
+		end
+
 		return result,'trad'
 	end
 
@@ -264,9 +267,7 @@ function create_actions()
 			result=result..'(flag_'..string.lower(v1)..'==YES)'
 		end
 		result=result..') {<<<CR>>>'
-		if type(v) == 'table' then
-			result=result..resolve_action(k,v)
-		elseif type(v) == 'string' then
+		if type(v) == 'string' then
 			rresult,rtype=action_program(k,v)
 
 			if rtype~=nil then
