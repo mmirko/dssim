@@ -57,6 +57,10 @@ flooding_lattice:
 flooding_hypercube:
 	@ $(MAKE) --no-print-directory -r -C flooding_hypercube
 
+.PHONY: test
+test:
+	./dssim -p broadcast -i broadcast.init -g graphs_rep/tree4.dot -v 
+
 .PHONY: regression
 regression: dssim
 	@ $(MAKE) --no-print-directory -r -C flooding_early_lattice regression

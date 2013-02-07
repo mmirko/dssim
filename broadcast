@@ -1,5 +1,5 @@
 registers = { STATE = {"IDLE", "INIT", "DONE"}}
-messtypes = { CLOCK = 'clock', IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
+messtypes = { CLOCK = {}, IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
 
 -- messtypes_new = { CLOCK = 'clock', IMPULSE = {"YES"}, BROADCAST = {"SENT"} , IMP = 'int'}
 
