@@ -200,32 +200,37 @@ function action_program(mat,act)
 		local vali
 		local dest
 
+		-- Getting the message type and check it
 		mtype,itype=action_program(mat,match1)
 		if itype==nil then
-			return regi,nil
+			return mtype,nil
 		elseif itype~='messtype' then
 			return match1..' is not a message type.',nil
 		end
 
+-- We need to check if vali is a message corresponding to mtype or not
 		vali,itype=action_program(mat,match2)
 		if itype==nil then
 			return vali,nil
 		end
 
 		dest,itype=action_program(mat,match3)
-		if itype==nil then
-			return vali,nil
-		elseif itype=='builtin_list' then
-			if dest=='NEIGHBORS' then
 
+		-- Evaluating message destination, it can be a node (integer) or e list or a builtin list
+		if itype==nil then
+			return dest,nil
+
+		-- Is a built in list
+		elseif itype=='builtin_list' then
+
+			if dest=='NEIGHBORS' then
 				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
 				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
 				result=result..'\t\t\t\t\tmessages_out[(nid*nodes+i)*messtypes+MESS_'..mtype..']='..mtype..'_'..vali..';<<<CR>>>'
 				result=result..'\t\t\t\t}<<<CR>>>'
 				result=result..'\t\t\t}<<<CR>>>'
-			end
 
-			if dest=='NOTSENDERS' then
+			elseif dest=='NOTSENDERS' then
 				result=result..'\t\t\tfor (i=0;i<nodes;i++) {<<<CR>>>'
 				result=result..'\t\t\t\tif (links[nid*nodes+i] != NO) {<<<CR>>>'
 				result=result..'\t\t\t\t\tif (messages_in[(i*nodes+nid)*messtypes+MESS_'..mtype..']!='..mtype..'_'..vali..') {<<<CR>>>'

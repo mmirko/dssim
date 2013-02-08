@@ -1,7 +1,10 @@
 registers = { STATE = {"IDLE", "INIT", "DONE"}}
 messtypes = { CLOCK = {}, IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
 
--- messtypes_new = { CLOCK = 'clock', IMPULSE = {"YES"}, BROADCAST = {"SENT"} , IMP = 'int'}
+-- variables = { a,b }
+-- lists = { mylist = { 5 } }
+
+-- messtypes_new = { CLOCK = "clock", IMPULSE = {"YES"}, BROADCAST = {"SENT"} , IMP = "integer" }
 
 options = { "RESET_MESS" }
 actions = {}
