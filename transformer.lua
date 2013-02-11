@@ -668,7 +668,7 @@ function get_boundary_el_state(step,name,reg)
 	
 end
 
--- Get the state the spontaneiys impulse reg of the node with the given name and temporal step step
+-- Get the state the spontaneus impulse reg of the node with the given name and temporal step step
 function get_boundary_el_mess(step,name,reg)
 	if boundary[step] == nil then
 		return nil
