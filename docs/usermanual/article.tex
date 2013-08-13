@@ -1,0 +1,518 @@
+\documentclass[12pt]{article}
+\usepackage[english]{babel}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\definecolor{lgray}{rgb}{0.8,0.8,0.8}
+\definecolor{dgreen}{rgb}{0.0,0.8,0.0}
+
+\lstset{breakatwhitespace,
+language=C,
+backgroundcolor=\color{lgray},
+%columns=fullflexible,
+keepspaces,
+breaklines,
+tabsize=3, 
+frame=shadowbox,
+basicstyle=\ttfamily\fontsize{7}{8}\selectfont,
+showstringspaces=false,
+keywordstyle=\color{blue},
+commentstyle=\color{dgreen},
+extendedchars=true}
+
+\title{ \includegraphics[scale=0.1]{logo} \\
+	\vspace{1cm}
+	DSSIM (Distributed Systems SIMulator) \\
+	An OpenCL simulator for distributed systems and their algorithms}
+\author{Mirko Mariotti \\ Department of Physics \\ University of Perugia}
+\date{\today}
+
+
+% Structure 7e83b59853e6eb308808624d748091e7
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+In this paper I will explore the logic and the functionalities of the OpenSSH agent (\emph{ssh-agent}) along with its counterpart \emph{ssh-add}. After having shown its use and purposes, I will show some modification i made to the source code of openssh to improve such functionalities allowing the use of the agent as a general purpose system security ``factotum''.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% Structure 16a47dcd7007968ddfa6fe6019e16be3
+
+%\section{Overview}
+%
+%% Structure 76ece4d3ab5c60ead288414f9c0b6f02
+%\subsection{SSH}
+%
+%SSH~\cite{Barrett:2001:SSS:558242} (Secure Shell) is a network protocol that allows to establish a secure (encrypted) remote session on another host on a computer network, it is the ``de facto'' substitute of the Telnet. The SSH client has an interface and an usage similar to \emph{telnet} and \emph{rlogin} 
+%but the entire communication (both the authentication and the session) are encrypted instead of beeing ``in clear'' as its predecessor. \\
+%
+%It is usually beeing used to:
+%\begin{itemize}
+%\item Launch a shell (or in general spawn any command) on a remote machine in a secure way.
+%\item Transfer files for and to a remote machine.
+%\end{itemize}
+%
+%SSH software is avalaible for every kind of PC Operating Systems as well as on appliances, smartphones and tablets. The most used implementation of the protocol is \emph{OpenSSH}, originally developed for the OpenBSD Operating System had been ported to many others systems. It is an open source software meaning that its source code is public and freely customizable. From now on every reference to SSH will mean to the OpenSSH implementation.
+%
+%\subsubsection{OpenSSH}
+%
+%SSH is made of a server software \emph{sshd} and its client \emph{ssh}. The server run on the remote machine and waits for connections usually on the TCP port 22. When invoked the client connects to the server and according to the authentication schema specified in the configuration it will asks for username and password or any other possible authentication information. Upon positive authtentication the client connects the remote file descriptors (via the server process) of the called process with itself letting the user think that a local process control a remote one as seen in Figure ~\ref{fig:ssh}. With SSH is it possible also to transfer files from a remote machine and vice versa. \\
+%
+%\begin{figure}[h]
+%\begin{center}
+%\caption{SSH connection}
+%\includegraphics[scale=0.50]{ssh}
+%\label{fig:ssh}
+%\end{center}
+%\end{figure}
+%
+%\subsubsection{SSH usage}
+%
+%The SSH usage is straightforward:
+%\begin{itemize}
+%\item \textbf{Connect to a remote shell}: \\ \fbox{\textit{ssh username@remotehostname}}
+%\item \textbf{Download files}: \\ \fbox{\textit{scp username@remotehostname:remotepath localpath}}
+%\item \textbf{Upload files}: \\ \fbox{\textit{scp localpath username@remotehostname:remotepath}}
+%\end{itemize}
+%
+%\subsubsection{SSH authentication via keys}
+%
+%The username and password in the SSH authentication may be substituted by a key based authentication schema. Doing so make possible a password-less access to remote machines.The command \fbox{\textit{ssh-keygen -t dsa}} allow the creation of a pair of DSA~\cite{Wiki:DSA} key (public and private) as seen in the example in Figure ~\ref{fig:keygen}. The private key is usually contained in the file \emph{\$HOME/.ssh/id\_dsa} and may be protected or not by a passphrase asked by  \emph{ssh-keygen} at the moment of keys creation. \\ The public key usually is in the file \emph{\$HOME/.ssh/id\_dsa.pub}. \\
+%
+%\begin{figure}[h]
+%\lstinputlisting[language=bash]{keygen.sh}
+%\caption{DSA keys generation}
+%\label{fig:keygen}
+%\end{figure}
+%
+%By placing the public key within a file called \emph{\$HOME/.ssh/authorized\_keys} on a remote machine (eventually on a different user home directory) we will instruct the \emph{sshd} daemon on that machine to consider valid the connection originating from someone possessing the relative private key.
+%If the private key is not protected by a passphrase the connection take place without any other requirements after issued the command. On the contrary if there is a passphrase the ssh command will ask for it prior to connecting. It may seem that protecting the key with a passphrase make unusefull the whole scenario since instead of a password we have to type a passphrase. It is not like that, a component of the SSH suite the \emph{ssh-agent} allows to store keys and to let SSH use them whenever necessary. Like that the passphrase is need only once, when storing the key into the agent.
+%
+%\subsection{the OpenSSH agent}
+%
+%The OpenSSH agent is a daemon called \emph{ssh-agent} that store and manages ssh identities. When an ssh command is issued, it search for the agent presence and if there is some key stored within. If is that the case and if such a key give access to a remote resource the ssh command execute and connects the user to the remote resource without asking for a password.
+%
+%\subsubsection{Agent usage}
+%
+%There are basically two ways of starting the agent:
+%\begin{itemize}
+%\item Upon starting the agent goes in background and write to stdout its environment parameters in the form of shell commands. so it can be launched from a shell this way: \fbox{\textit{eval `ssh-agent`}}
+%\item The agent itself may spawn a command and export to it its own environment: \fbox{\textit{ssh-agent [command]}}
+%\end{itemize}
+%
+%When stating the agent several options may be specified via command line arguments:
+%\begin{itemize}
+%\item What kind of shell is the environment commands target.
+%\item The default duration of a stored key: \fbox{\textit{ssh-agent -t [n]}}, so after n seconds the key will expire and removed from the agent.
+%\item The agent may be closed with: \fbox{\textit{ssh-agent -k}}
+%\end{itemize}
+%
+%\subsubsection{Agent's client}
+%
+%\emph{ssh-add} is the agent's client. The two of them communicate with a UNIX socket and ssh-add manage keys stored within the ssh-agent deamon via command line arguments. Several operation are possible:
+%\begin{itemize}
+%\item Add an identity (a pair of keys) to the agent: \fbox{\textit{ssh-add [filename]}}
+%\item Lock and unlock the agent: \fbox{\textit{ssh-add -x [-X]}}
+%\item List the fingerprints or the public key parameters of the managed identities: \fbox{\textit{ssh-add -l [-L]}}
+%\item Remove an identity or all: \fbox{\textit{ssh-add -d [filename] [-D]}}
+%\end{itemize}
+%% Structure b59b54cd13769df8b028185598840d86
+%\subsubsection{Sharing keys among machines}
+%
+%SSH provide a way to forward automatically keys from an endpoint to another using the option: \fbox{\textit{ForwardAgent=yes}} of the ssh command. This option implicitly open an agent on the remote endpoint, propagate the keys on it and set the authentication environment to the called program. The remote program may now use the authentication information. In figure ~\ref{fig:aforward} is shown the process of a forwarding keys.
+%
+%\begin{center}
+%\begin{figure}[h]
+%\includegraphics[scale=0.6]{aforward.png}
+%\caption{Agent forwarding}
+%\label{fig:aforward}
+%\end{figure}
+%\end{center}
+%
+%% Structure b36f08ca19616e5f4da76471fb2e4f5d
+%
+%% Structure 0f01db8dfa36e1860f48e830294feffe
+%\subsubsection{Some notes about security}
+%
+%As all ssh operations, an agent is not meant to be used in an insecure system. Indeed gain the access to the authentication socket opened by an agent gives an attacker access to all the systems protected by those keys. In the case of a forwarding agent among different system, this fact means that if even one of the machine is not secure, the whole chain will not be.
+%
+%% Structure 0e1db787040eb3a86c7bd8f344f9d24f
+%
+%\subsection{What is this work about}
+%
+%The agent is a powerfull tool that allows an easy and secure connection among machines via the ssh protocol, with it keys may be moved and used from a system to another but its use is specific to the ssh context. What if we want it to be a more general tool? If we want for example use a user's private key to create security tickets or to crypt and decrypt data with a symmetric algorithm. To do so, several modification is to be made to the openssh code. This modifications will be described in the subsequent sections.
+%
+%% Structure 9f9c24d922bdec9e6676b30d36507800
+%\section{OpenSSH agent internals}
+%
+%% Structure 43524356543756850789745765475437
+%Before going any further it is necessary to take a look at the internal behaviour of the ssh-agent and the ssh-add. The involved source file are:
+%\begin{itemize}
+%\item \emph{buffer.h}: It contains the functions to manage the buffers.
+%\item \emph{buffer.c}: It contains the functions implementations.
+%\item \emph{authfd.h}: It contains the functions definitions to interface with the ``SSH authentication socket''
+%\item \emph{authfd.c}: It contains the functions implementations.
+%\item \emph{ssh-add.c}: It is the agent client source code.
+%\item \emph{ssh-agent.c}: It is the agent itself.
+%
+%\end{itemize}
+%% Structure 5436527845673866573895247
+%\subsection{Interacting with the agent}
+%
+%When the agent starts it opens a UNIX socket that is the only interaction method possible, the socket location is generated by the agent as shell commands:
+%\lstinputlisting[language=bash]{agent-start.sh}
+%Two environment variable \emph{SSH\_AUTH\_SOCK} and \emph{SSH\_AGENT\_PID} are generated. If a program of the OpenSSH suite find these variables it will try to talk with the agent via the socket. This is the ``SSH authentication socket''.
+%
+%% Structure 739e096fef40222c686a6ca2d789bd43
+%\subsection{The buffer struct} 
+%
+%All the communication done on the ``SSH authentication socket'' are managed on the source code via a struct build to manipulate fifo buffers that can grow if needed, It is called the ``buffer struct''. The ``buffer struct'' is defined in \emph{buffer.h} as follows:
+%\lstinputlisting[language=C,title=The buffer struct]{buffer.c}
+%Several functions are implemented in \emph{buffer.c} and may be used to manipulate buffers such as create, free, add new data, etc. The agent and its client exchange buffers within the UNIX socket.
+%
+%% Structure dbf900a66b0776f45263538181408955
+%\subsection{Agent Protocol} 
+%
+%The atomic interaction beetween \emph{ssh-add} and \emph{ssh-agent} is in the form of a request-response query. The client compose e query starting with a byte that we may call \emph{request ID} followed by all the data needed to process the request. The query is sent to the ``SSH authentication socket'' and the agent receive it and reading the \emph{request ID} decide what to do. After having processed the request (for example the sing of a key) the agent compose a response starting with a \emph{response ID} byte followed by the response data and send it back on the socket. It also exists some generic failure and success responses. The protocol is described in the \emph{PROTOCOL.agent} file while \emph{authfd.h} has all the \emph{request ID} and \emph{response ID} in the form of C constants. The message maximum lenght is a constant so it may be necessary to have multiple request-response for a single \emph{ssh-add} invocation. A function that we may call \emph{request manager} can accomplish this task.
+%
+%
+%% Structure fccdb1b08ff5d28f9dd006d180634f28
+%\subsection{The Request Process}
+%
+%The figure ~\ref{fig:reqprocess} show the sequence of a typical request made from the \emph{ssh-add} to the \emph{ssh-agent}.
+%
+%\begin{figure}[h]
+%\begin{center}
+%\caption{The request process}
+%\includegraphics[scale=0.50]{reqprocess}
+%\label{fig:reqprocess}
+%\end{center}
+%\end{figure}
+%
+%
+%% Structure 6776bea99422aaee00e734d19221642d
+%
+%% Structure 4bd80503545883b882e390d9c92f3634
+%\subsection{Data structures}
+%
+%Let's now check how the agent store the informations about its keys.
+%
+%% Structure cf591d76b2230e79aa0d4970479920df
+%\subsubsection{Identities}
+%
+%The agent store its managed keys in a linked list queue ~\cite{misc:queues} of structs called Identity defined in \emph{ssh-agent.c}. The struct definition is shown in listing ~\ref{lis:idstruct}.
+%\lstinputlisting[language=C,caption=The identity struct,label=lis:idstruct]{identity.c}
+%Each Identity entry stores:
+%\begin{itemize}
+%\item The effective keys, a pointer to the struct Key described in the next section.
+%\item The identity lifetime, the duration in second of the key. After this amount o time the key will be automatically erased by the agent.
+%\item A description.
+%\item Some other optional parameter.
+%\end{itemize}
+%% Structure cd9aa8dcc18b5d653bb452f3dacae5a9
+%\subsubsection{Keys}
+%
+%The key pointer in the Identity struct refer to a struct called Key and defined in \emph{key.h} show in listing ~\ref{lis:keystruct}.
+%
+%\lstinputlisting[language=C,caption=The Key struct,label=lis:keystruct]{keystruct.c}
+%
+%The functions needed to manage the keys kept here are functions that OpenSSH derive from the \emph{openssl} library.
+%
+%% Structure 4c54975f55fd148bb1496e388ad2bd1a
+%\subsubsection{DSA Keys}
+%
+%For the purpose of this work we are interested only in DSA keys. The DSA keys are defined in the \emph{openssl} library and in listing ~\ref{lis:dsakey} is shown its definition.
+%
+%\lstinputlisting[language=C,caption=The DSA Key struct,label=lis:dsakey]{dsakeystruct.c}
+%
+%In particular \emph{priv\_key} is the actual DSA private key, this is the key that will be used for the rest of this work.
+%
+%% Structure ad101edd221897408204f07a4465ba80
+%
+%\section{Hacks}
+%
+%% Structure 4228c6f432a1f77b78d221a81d4b52e2
+%These are the improvement made:
+%\begin{itemize}
+%\item Added a ssh-add command option to get the amount of time (in seconds) that the key will stay on agent.
+%\item Added a feature that allows to take a file and make an hash out of it after having merged it with the private key (create a sort of ticket).
+%\item Added commands to crypt and decrypt files with a symmetric key derived from those stored in the agent.
+%\end{itemize}
+%
+%% Structure 7f1fcb3c3e9db57edc939c132ecccf3c
+%\subsection{Common traits}
+%
+%For every one of these the modification made are similar, expecially regarding the protocol extension, the add of command line arguments, the creation of new request functions and handlers. 
+%
+%% Structure 342daca175375384c236117dfe5902a1
+%\subsubsection{Protocol}
+%Every request need to have a unique request id and response id so it is necessary to define within \emph{authfd.h} the new constants for these. The \emph{process\_message} function within \emph{ssh-agent.c} has also to be modified to handle the new ids an point to the handlers functions as show in listing ~\ref{lis:messex}
+%\lstinputlisting[language=C,caption=process\_message function in ssh-agent.c,label=lis:messex,float=h]{processmessage.c}
+%
+%% Structure e3f1688cf24bcf146742fcc7e41d2545
+%\subsubsection{Client Arguments}
+%Every hack has to be invoked from \emph{ssh-add} as command line arguments. That arguments has to be added to the source code of \emph{ssh-add.c}. To do so the arguments has to be added to the main \emph{getopt} call usign its conventions, the listing ~\ref{lis:maingetop} show an example of such amodification.
+%\lstinputlisting[language=C,caption=Main getopt operations,label=lis:maingetop,float=h]{getopt.c}
+%After the getopt operation each new argument has to be handled and the relative request manager function has to be called.
+%
+%% Structure d2e3e901354ef65e36c2e098ca9dddfe
+%\subsubsection{Request Manager}
+%Every new functionality has its own manager function within \emph{ssh-add.c}, the manager function prepare the data that will be sent to the real request (or to the real multiple requests if needed) and handle the responses. A function for every hack has to be included in \emph{ssh-add.c} an example of one of these function is show in listing ~\ref{lis:rmex}.
+%
+%\lstinputlisting[language=C,caption=manager function example,label=lis:rmex,float=h]{rm.c}
+%
+%% Structure 71463ecb2f92dc002c615568813dacd7
+%\subsubsection{Request}
+%Several new request submit functions have to be written in order to obtain new functionalities, these are declared in the file \emph{authfd.h} and implemented in \emph{authfd.c}. Each function is the atomic block of the agent-client comunication, it runs on the client and is responsible for the making the sigle request and getting back the response. Its standard sequence of actions are:
+%\begin{itemize}
+%\item Initialize a buffer.
+%\item Write the request ID using the buffer functions
+%\item Fill the buffer with the data needed to perform the requested operations.
+%\item Send the request via a \emph{ssh\_request\_reply} call.
+%\item Check the response exit codes.
+%\item Return with data from the response.
+%\end{itemize}
+%
+%% Structure 4119f0c60d50f67518e7213e6c7fc415
+%\subsubsection{Request Handler}
+%
+%Each request has an handler function in \emph{ssh-agent.c}. The handler receive the request buffer process it and compose the response buffer. The handlers are where the effective operation is done, for this reason they are part of the agent's code. For example the operation of crypt a block of code is done by an handler function. The handler is called by the agent every time a request arrives as it is the atomic response operation.
+%
+%% Structure 470ac77a4f176c9acfc7006948a2e355
+%
+%\subsection{Timeleft hack}
+%
+%
+%% Structure e45ed83250de8931875e20fde4d8f076
+%As seen the key struct within the agent store in the deathtime field how many seconds the key will stay in the agent before beeing removed. The standard openssh implemetation does not have a way to get this value. The timeleft hack add the \emph{-T} option to ssh-add allowing the user to get this information. This value may be put in a desktop widget, or in a command line prompt.
+%
+%% Structure 835232a208634d655b9f675c4cc49757
+%\subsubsection{Examples}
+%\lstinputlisting[language=bash,title=Agent with no key]{timeleft-1.sh}
+%\lstinputlisting[language=bash,title=Agent with an expiring key]{timeleft-2.sh}
+%\lstinputlisting[language=bash,title=Agent with a not expiring key]{timeleft-3.sh}
+%
+%% Structure 6eee25ac268893a777438aee576cfdc1
+%\subsubsection{Request and Handler}
+%Since the task of retriving the time left is very simple (only one request) the request manager is trivial. It purpose is just to write the duration. ``forever'' or ``none''. The request (listing ~\ref{lis:reqtl}) is only the request ID since there is no other argument. The replay sends back an integer as show in listing ~\ref{lis:hantl}.
+%
+%\lstinputlisting[language=C,caption=Timeleft Request,float=h,label=lis:reqtl]{requesttimeleft.c}
+%\lstinputlisting[language=C,caption=Timeleft Handler,float=h,label=lis:hantl]{processtimeleft.c}
+%
+%% Structure ae92f1d2a675fedb4e38f267f6675c0e
+%\subsubsection{Request Manager}
+%In listing ~\ref{lis:tlman} is shown the code for the Timeleft Request Manager
+%\lstinputlisting[language=C,caption=Timeleft Request Manager,float=h,label=lis:tlman]{timeleftmanager.c}
+%
+%% Structure 8eaec9fd65fc6a3be924bab2b6fda313
+%
+%% Structure ff98d0b2e5d6b07f7c42c00508fc55f0
+%\subsection{Token hack}
+%
+%% Structure f19a71832efb42a6d0e0c773e8e45d22
+%With the Token hack is possible to create an hash of a file merged with the agent's private key. The hack add the \emph{-m [file]} option to ssh-add allowing the user to specify the file (on stdin with -). To compute the token this procedure has been choosen: 
+%\begin{itemize}
+%\item The file (or stream) to be used is splitted in chunks smaller the maximum message length between \emph{ssh-agent} and \emph{ssh-add}.
+%\item For every chunk:
+%	\begin{itemize}
+%	\item A request is made
+%	\item The handler concatenate the private key with the chunk and make an SHA1 hash
+%	\item The hash is sent back
+%	\end{itemize}
+%\item The request manager concatenate into the final result all the hashes.
+%\end{itemize}
+%
+%This value may be use as token to authenticate other services.
+%
+%% Structure f4c0508693847326af1c76e1482193c2
+%\subsubsection{Examples}
+%
+%\lstinputlisting[language=bash,title=Token from a file]{token-1.sh}
+%
+%\lstinputlisting[language=bash,title=Token from stdin]{token-2.sh}
+%
+%% Structure 2b80973a8cdd55da677dfac2f210b4b5
+%\subsubsection{Request Manager}
+%
+%The Token hack request manager does the following actions:
+%\begin{itemize}
+%\item Open the file source for the token.
+%\item Spilt it in several parts and for every part:
+%\begin{itemize}
+%\item Compose a token request
+%\item Send the request
+%\item Print the result request
+%\end{itemize}
+%\item Use the concatenation of the partial results as final token
+%\end{itemize}
+%
+%% Structure afb7eb9025d15f4e9fc4b8246d8bd945
+%
+%In listing ~\ref{lis:rmtoken} parts of the Token request manager are shown.
+%
+%\lstinputlisting[language=C,caption=Token Request Manager,label=lis:rmtoken]{tokenmanager.c}
+%
+%% Structure 48d0123b5d2b3c18f6b5aec32e45acbd
+%\subsubsection{Request and Handler}
+%
+%The request function (shown in listing ~\ref{lis:tokreq}) compose the buffer like this:
+%\begin{itemize}
+%\item Buffer initializzation
+%\item Request ID write
+%\item Request Data write
+%\item Request Submit
+%\item Return the result to the calling function
+%\end{itemize}
+%
+%\lstinputlisting[language=C,caption=Token Hack Request,label=lis:tokreq]{tokreq1.c}
+%
+%Handler shown in listing ~\ref{lis:tokhand} respond the request queries performing the following operations:
+%
+%\begin{itemize}
+%\item Get the key specs and data
+%\item Get the the private key
+%\item Concatenate the private key with the data and make a SHA digest
+%\item Send back the result
+%\end{itemize}
+%		
+%\lstinputlisting[language=C,caption=Token Hack Request Handler,label=lis:tokhand,float=h]{tokhan1.c}
+%
+%
+%% Structure 44797ee1f6e9727b6418ae0087ef81fb
+%\subsection{Crypt/Decrypt hack}
+%
+%% Structure 988f62e9743fbc8b53d2118f7bf195a2
+%The Crypt/Decrypt hack adds the possibility to encrypt and dectrypt files using the private key (or an hash from it derived) as symmetric key. The hack add the \emph{-z [file]} option to encrypt a cleartext file to the ciphertext specified with the \emph{-o [file]} option, and the \emph{-Z [file]} to do the opposite (with the \emph{-o [file]} option as well). Internally the AES symmetric cipher is used.
+%
+%% Structure a23b2b679b4fd2ae54df87986f84af26
+%\subsubsection{Examples}
+%
+%\lstinputlisting[language=bash,title=Crypt and Decrypt]{crypt-1.sh}
+%
+%% Structure 71a6f676a411e85a5d7d8d56e00f3174
+%\subsubsection{Request}
+%
+%The request is almost identical to the one from the Token hack and shown in listing ~\ref{lis:cryreq}.
+%\lstinputlisting[language=C,caption=Crypt/Decrpy request,label=lis:cryreq]{cryptrequest.c}
+%
+%% Structure 6afd5c4c769bb44dcc903f7d64e3606d
+%\subsubsection{Handler}
+%
+%To handle the AES cryptography i used the \emph{openssl EVP library} that provides high-level interface to cryptographic functions, and created 3 functions within \emph{ssh-agent.c}:
+%
+%\lstinputlisting[language=C,caption=AES Initialization]{evp-1.c}
+%
+%\lstinputlisting[language=C,caption=AES Crypt]{evp-2.c}
+%
+%\lstinputlisting[language=C,caption=AES Decrypt]{evp-3.c}
+%
+%% Structure 6b999cb0c7ca56de811405c901237d85
+%
+%The functions are then used in the request handler:  
+%
+%\lstinputlisting[language=C,caption=Crypt/Decrypt handler]{crypthandler.c}
+%
+%% Structure 61ae977930f0a0f69c0901a881550168
+%\subsubsection{Request Manager}
+%
+%The request manager (called crypt\_thigs) is much complicated than the others in many ways, this is a list of the problems and solutions found:
+%\begin{itemize}
+%\item The output of the process has to be stored in a file so it have been necessary to include one more command line arguments (\emph{-o})to \emph{ssh-add.c} to specify the file name for the output. Furthermore this file has to written within the request manager.
+%\item It has to handle both encryption and decryption so has been added a flag to the signature of the crypt\_thing function to specify if it is crypt or decrypt. 
+%\item The lenght of AES ciphertext may be different (and in general is) from the plaintext lenght. This means that a minimal structure is needed for the output file, keeping the length of each block just before the ciphertext.
+%\item The endianness-neutrality and data type length of the file write operations have to be assured to have portability. The use of C99 standards for data type (as uint32\_t) solve the data type length while i used the network ordering function to have endianness-neutrality (as htonl).
+%\end{itemize}
+%
+%% Structure 88d7d2b437156f3c9a6168c8ff31887a
+%\subsection{Regression tests}
+%The openssh sources has a Makefile target that provides a suite of regression tests for all the protocols and keys operations among different versions and architectures. I added tests to check the determinism and coherence of the tokens and ciphertexts, in table ~\ref{tab:testedsystem} are the systems where the code has been tested succesfully. 
+%
+%\begin{table}[h]
+%\caption{Tested Systems}
+%\label{tab:testedsystem}
+%\begin{center}
+%\begin{tabular}{l l l}
+%\hline
+%{\large Architecture} & {\large Operating System} & {\large Kernel} \\
+%\hline
+%amd64 & Gentoo & Linux 3.8.13 \\
+%i386 & OpenBSD & OpenBSD 5.0 GENERIC \\
+%amd64 & Debian Squeeze & Linux 2.6.32 \\
+%amd64 & Debian Wheezy & Linux 3.2.0 \\
+%i686 & Debian Wheezy & Linux 3.2.0 \\
+%alpha EV67 Tsunami & Gentoo & Linux 3.7.10 \\
+%\hline
+%\end{tabular}
+%\end{center}
+%\end{table}
+%% Structure 908049005e32f7e3c153c3c8e191cd90
+%\section{Use cases}
+%% Structure aff149bb6e72473e03812ddad0c25ae5
+%Now let's see some examples that may benefit from this improved \emph{ssh-agent}.
+%
+%% Structure 9ce4bbf6edf9360f0e8b678de16fb0d2
+%\subsection{Using the token to unlock Luks devices}
+%
+%% Structure ac7121132785832ed6fa77ab374d6dfd
+%Linux Unified Key Setup or LUKS is a disk-encryption specification, it allows a user to encrypt a device with one ore more passphrase:
+%\lstinputlisting[language=bash,title=Creating a LUKS device]{luks-1.sh}
+%\lstinputlisting[language=bash,title=Add a key to a LUKS device]{luks-2.sh}
+%\lstinputlisting[language=bash,title=Decrypt a LUKS device]{luks-3.sh}
+%As seen from the examples it is possible to use a keyfile.
+%
+%% Structure d08479ad4126f107c9b01ddf1a2e03b9
+%Following this procedure is then possbile to bond a LUKS device with a SSH private key using the Token hack:
+%\begin{itemize}
+%\item Create a random file used as plaintext file: \\ \fbox{\textit{dd if=/dev/urandom of=plaintext bs=1 count=1024}}
+%\item Start the agent and store an identity: \fbox{\textit{eval `ssh-agent` ; ssh-add}}
+%\item Create a token: \fbox{\textit{ssh-add -m plaintext $>$ token}}
+%\item Use the token to format the device or add it to an existing one: \\ \fbox{\textit{cryptsetup luksFormat /dev/devn token}} \\ or \fbox{\textit{cryptsetup luksAddKey /dev/devn token}}
+%\item Delete the token.
+%\item From now on the device may be unlocked recreating the token and with: \fbox{\textit{cryptsetup luksOpen /dev/devn crytodevn --with-keyfile token}}
+%\end{itemize}
+%
+%% Structure e5d65155843f2a33a87c7e3b20ab8f62
+%\subsection{HIDS}
+%
+%% Structure e6998384bbf7e397e44f77437497576a
+%\subsubsection{Tripwire}
+%
+%Tripwire is a free software to monitor the data integrity on systems. Acording to a configurable policy it keeps a cryptographic database of data and alert for changes against the policy. It is an HIDS (host-based intrusion detection system). \\
+%It works with two passphrases called ``local'' and ``site''. The ``site'' passphrase is meant to be the main one, used to modify the policy and the configuration and work site-wide. The ``local'' is used to update the cryptographic database. \\
+%Tripwire is a sofisticated system and need continuos adjustments so bonding the passphrases to the SSH keys may simplify the operations. Moreover with this method the ``site'' passphrase may travel accross servers using the forwarding capabilities of SSH
+%
+%% Structure 5e64a62cb3fc9bb8137bce3c3131713c
+%\subsubsection{Implement a remote HIDS}
+%
+%The following scripts show how to implement a remote HIDS with the improved agent:
+%
+%\lstinputlisting[language=bash,title=Creating the database]{rhidsupd.sh}
+%
+%\lstinputlisting[language=bash,title=Check the remote system]{rhidschk.sh}
+%
+%% Structure abead6c80e0530f0b10e9846c0ef86f8
+%\section{Conclusion}
+%% Structure 11adbb7fb5a5065a9a5cf4afc657e8b7
+%
+%In this work i tried to give to the openssh agent a central role in my systems security and to make easier the every day security checks. The agent is now capable of generating tokens that may be used to control other systems and to crypt and decrypt file using the stored keys. The whole system works well and have been longed tested, some work has to be done to put the sources in an elegant way (some docs, comments, check for error states, etc).
+%Some further improvments may be done such as:
+%\begin{itemize}
+%\item Let the user choose the digest algorithm and not only use the SHA. 
+%\item Let the user choose symmetric cryptography algorithm other than AES.
+%\item Improve the regression tests introducing more samples.
+%\item Introduce a random sequence whose token is used as symmetric key instead of using the key directly (It will need a protocol enhancement since it will be necessary to store the random sequence in the ciphertext).
+%\item Manage multiple keys and other then DSA.
+%\end{itemize}
+%
+%
+%\bibliographystyle{abbrv}
+%\bibliography{main}
+%
+\end{document}
