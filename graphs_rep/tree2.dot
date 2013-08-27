@@ -1,4 +1,7 @@
 digraph "test" {
+
+"N1" [rspeed="10"];
+
 "N1" -> "N2";
 "N2" -> "N1";
 

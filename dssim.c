@@ -460,13 +460,13 @@ int check_end(int * states, int * messages, int nodes, int * ending_states, int 
 
 void version()
 {
-	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.it\n");
+	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2013 - Mirko Mariotti - http://www.mirkomariotti.it\n");
 	fflush(stdout);
 }
 
 void usage()
 {
-	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
+	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2013 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
 	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-T type] [-b] [-e]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
@@ -761,6 +761,9 @@ int main( int argc, char* argv[] )
 	// Node index to Node structure
 	Agnode_t ** ithnode;
 
+	// Entity relative speed
+	int * speeds;
+
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
 
@@ -925,14 +928,25 @@ int main( int argc, char* argv[] )
 		// Allocate memory for ithnode
 		ithnode = (Agnode_t **) malloc(nodes*sizeof(Agnode_t *));
 
+		// Allocate memory for speeds
+		speeds = (int *) malloc(nodes*sizeof(int));
+
 		// Allocate memory for the link matrix and initialize it
 		links = (int*)malloc(nodes*nodes*bytes);
 		for (i=0;i<nodes*nodes;i++) *(links+i)=0;
 
 		// Populate the id->node resolution
 		for (inode=agfstnode(dsgraph),i=0;inode!=NULL;inode=agnxtnode(dsgraph,inode),i++) {
-			if (verbose) printf(" - Importing node - %s (Host %p)\n",inode->name,inode);
+			if (verbose) printf(" - Importing node - %s (Host %p)",inode->name,inode);
 			*(ithnode+i)=inode;
+
+			tempstr=agget(inode,"rspeed");
+			if ((tempstr!=NULL)&&(strcmp("",tempstr))) {
+				*(speeds+i)=atoi(tempstr);
+			} else {
+				*(speeds+i)=1;
+			}
+			if (verbose) printf(" - Relative speed %d\n",*(speeds+i));
 		}
 
 		if (verbose) printf("%d nodes imported\n\n",nodes);
