@@ -17,6 +17,7 @@
 #define ARRFF 4.0
 
 #include "transformer.c"
+#include "messages.c"
 
 //////////////////////////////////////// In case of custom kernels you have to config these:
 #define REGISTERS 1
