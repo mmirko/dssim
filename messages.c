@@ -39,7 +39,17 @@ int * mes_queue_pop(struct mes_queue * queue, int messtypes) {
 	}
 }
 
-/*
+int mes_queue_count(struct mes_queue * queue, int messtypes) {
+	int result=0;
+	struct list_head *pos, *q;
+
+	list_for_each_safe(pos, q,  &(queue->list)){
+		result++;
+	}
+	return result;
+}
+
+
 void mes_queue_trav(struct mes_queue * queue, int messtypes) {
 	unsigned int i;
 	struct list_head *pos;
@@ -48,12 +58,16 @@ void mes_queue_trav(struct mes_queue * queue, int messtypes) {
 	list_for_each(pos, &(queue->list)){
 		tmp= list_entry(pos, struct mes_queue, list);
 		for(i=0; i<messtypes; i++){
-			printf("%d ",*(tmp->message+i));
+			if (i==0) {
+				printf("(%d",*(tmp->message+i));
+			} else {
+				printf(" %d",*(tmp->message+i));
+			}
 		}
-		printf("\n");
+		printf(")");
 	}
 }
-
+/*
 int main(int argc, char **argv){
 	unsigned int i;
 	struct mes_queue qq;

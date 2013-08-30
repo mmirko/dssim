@@ -1442,6 +1442,7 @@ int main( int argc, char* argv[] )
 			}
 
 			for (j=0 ; j < nodes ; j++) {
+				int messchck=0;
 				for (k=0 ; k < messtypes ; k++) {
 					if ( *(messages+(i*nodes+j)*messtypes+k)!=*(message_defaults+k)) {
 						tempstr=id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
@@ -1450,7 +1451,14 @@ int main( int argc, char* argv[] )
 							free(tempstr);
 						}
 						messcompl++;
+						messchck=1;
 					}
+				}
+
+				if (messchck==1) {
+					mes_queue_push(queues+(i*nodes+j), messtypes, messages+(i*nodes+j)*messtypes);
+					printf("Queue lenght: %d ",mes_queue_count(queues+(i*nodes+j), messtypes));
+					mes_queue_trav(queues+(i*nodes+j), messtypes);
 				}
 			}
 
