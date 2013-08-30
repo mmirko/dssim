@@ -26,7 +26,7 @@ void mes_queue_push(struct mes_queue * queue, int messtypes, int * message) {
 }
 
 int * mes_queue_pop(struct mes_queue * queue, int messtypes) {
-	int * result;
+	int * result=NULL;
 	struct list_head *pos, *q;
 	struct mes_queue *tmp;
 

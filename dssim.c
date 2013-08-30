@@ -763,10 +763,16 @@ int main( int argc, char* argv[] )
 	Agnode_t ** ithnode;
 
 	// Entity relative speed
-	int * speeds;
+	int * nspeeds;
+
+	// Links relative speed
+	int * lspeeds;
 
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
+
+	// Message queues
+	struct mes_queue * queues;
 
 	// Node registers
 	unsigned int registers = REGISTERS;
@@ -929,25 +935,33 @@ int main( int argc, char* argv[] )
 		// Allocate memory for ithnode
 		ithnode = (Agnode_t **) malloc(nodes*sizeof(Agnode_t *));
 
-		// Allocate memory for speeds
-		speeds = (int *) malloc(nodes*sizeof(int));
+		// Allocate memory for node speeds
+		nspeeds = (int *) malloc(nodes*sizeof(int));
 
-		// Allocate memory for the link matrix and initialize it
+		// Allocate memory for link speeds
+		lspeeds = (int *) malloc(nodes*nodes*sizeof(int));
+
+		// Allocate memory for the link matrix and initialize it and initialize the messages queue
 		links = (int*)malloc(nodes*nodes*bytes);
-		for (i=0;i<nodes*nodes;i++) *(links+i)=0;
+		queues = (struct mes_queue *) malloc(nodes*nodes*sizeof(struct mes_queue));
+		for (i=0;i<nodes*nodes;i++) {
+			*(links+i)=0;
+			mes_queue_init(queues+i);
+		}
 
 		// Populate the id->node resolution
 		for (inode=agfstnode(dsgraph),i=0;inode!=NULL;inode=agnxtnode(dsgraph,inode),i++) {
 			if (verbose) printf(" - Importing node - %s (Host %p)",inode->name,inode);
 			*(ithnode+i)=inode;
 
+			// Get the node relative speed or eventually 1
 			tempstr=agget(inode,"rspeed");
 			if ((tempstr!=NULL)&&(strcmp("",tempstr))) {
-				*(speeds+i)=atoi(tempstr);
+				*(nspeeds+i)=atoi(tempstr);
 			} else {
-				*(speeds+i)=1;
+				*(nspeeds+i)=1;
 			}
-			if (verbose) printf(" - Relative speed %d\n",*(speeds+i));
+			if (verbose) printf(" - Relative speed %d\n",*(nspeeds+i));
 		}
 
 		if (verbose) printf("%d nodes imported\n\n",nodes);
@@ -967,7 +981,16 @@ int main( int argc, char* argv[] )
 				} else {
 					*(links+j*nodes+k)=1;
 				}
-				if (verbose) printf("   - Importing edge (Label %d) - %s (Host %p) -> %s (Host %p)\n",*(links+j*nodes+k),iedge->tail->name,iedge->tail,iedge->head->name,iedge->head);
+				if (verbose) printf("   - Importing edge (Label %d) - %s (Host %p) -> %s (Host %p)",*(links+j*nodes+k),iedge->tail->name,iedge->tail,iedge->head->name,iedge->head);
+
+				// Get the relative link speed or eventually 1
+				tempstr=agget(iedge,"rspeed");
+				if ((tempstr!=NULL)&&(strcmp("",tempstr))) {
+					*(lspeeds+j*nodes+k)=atoi(tempstr);
+				} else {
+					*(lspeeds+j*nodes+k)=1;
+				}
+				if (verbose) printf(" - Relative speed %d\n",*(lspeeds+j*nodes+k));
 			}
 		}
 
@@ -1459,6 +1482,7 @@ int main( int argc, char* argv[] )
 	clReleaseContext(context);
 	
 	//release host memory
+	free(queues);
 	free(links);
 	free(states);
 	free(messages);
