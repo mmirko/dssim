@@ -762,11 +762,13 @@ int main( int argc, char* argv[] )
 	// Node index to Node structure
 	Agnode_t ** ithnode;
 
-	// Entity relative speed
+	// Entity relative speed and next execution array
 	int * nspeeds;
+	long * nnextexec;
 
-	// Links relative speed
+	// Links relative speed and next availybility array
 	int * lspeeds;
+	long * lnextavail;
 
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
@@ -935,18 +937,21 @@ int main( int argc, char* argv[] )
 		// Allocate memory for ithnode
 		ithnode = (Agnode_t **) malloc(nodes*sizeof(Agnode_t *));
 
-		// Allocate memory for node speeds
+		// Allocate memory for node speeds and nnextexec
 		nspeeds = (int *) malloc(nodes*sizeof(int));
+		nnextexec = (long *) malloc(nodes*sizeof(long));
 
 		// Allocate memory for link speeds
 		lspeeds = (int *) malloc(nodes*nodes*sizeof(int));
+		lnextavail = (long *) malloc(nodes*nodes*sizeof(long));
 
-		// Allocate memory for the link matrix and initialize it and initialize the messages queue
+		// Allocate memory for the link matrix and initialize it and initialize the messages queue and the nnextexec
 		links = (int*)malloc(nodes*nodes*bytes);
 		queues = (struct mes_queue *) malloc(nodes*nodes*sizeof(struct mes_queue));
 		for (i=0;i<nodes*nodes;i++) {
 			*(links+i)=0;
 			mes_queue_init(queues+i);
+			*(lnextavail+i)=0;
 		}
 
 		// Populate the id->node resolution
@@ -962,6 +967,7 @@ int main( int argc, char* argv[] )
 				*(nspeeds+i)=1;
 			}
 			if (verbose) printf(" - Relative speed %d\n",*(nspeeds+i));
+			*(nnextexec+i)=0;
 		}
 
 		if (verbose) printf("%d nodes imported\n\n",nodes);
@@ -1455,11 +1461,11 @@ int main( int argc, char* argv[] )
 					}
 				}
 
-				if (messchck==1) {
-					mes_queue_push(queues+(i*nodes+j), messtypes, messages+(i*nodes+j)*messtypes);
-					printf("Queue lenght: %d ",mes_queue_count(queues+(i*nodes+j), messtypes));
-					mes_queue_trav(queues+(i*nodes+j), messtypes);
-				}
+//				if (messchck==1) {
+//					mes_queue_push(queues+(i*nodes+j), messtypes, messages+(i*nodes+j)*messtypes);
+//					printf("Queue lenght: %d ",mes_queue_count(queues+(i*nodes+j), messtypes));
+//					mes_queue_trav(queues+(i*nodes+j), messtypes);
+//				}
 			}
 
 			if (verbose) printf("\n");
@@ -1490,6 +1496,8 @@ int main( int argc, char* argv[] )
 	clReleaseContext(context);
 	
 	//release host memory
+	free(nnextexec);
+	free(lnextavail);
 	free(queues);
 	free(links);
 	free(states);
