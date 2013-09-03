@@ -775,6 +775,9 @@ int main( int argc, char* argv[] )
 	int c,index;
 	int i,j,k,l;
 
+	// Time
+	int timetick;
+
 	// The protocol filename
 	char * protocol_file = NULL;
 
@@ -828,6 +831,7 @@ int main( int argc, char* argv[] )
 
 	// Links relative speed and next availybility array
 	int * lspeeds;
+	int * link_incr;
 
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
@@ -1002,8 +1006,9 @@ int main( int argc, char* argv[] )
 		ex_incr = (int *) malloc(nodes*sizeof(int));
 		ex_stat = (int *) malloc(nodes*sizeof(int));
 
-		// Allocate memory for link speeds
+		// Allocate memory for link speeds and link_incr
 		lspeeds = (int *) malloc(nodes*nodes*sizeof(int));
+		link_incr = (int *) malloc(nodes*nodes*sizeof(int));
 
 		// Allocate memory for the link matrix and initialize it and initialize the messages queue and the lspeeds
 		links = (int*)malloc(nodes*nodes*bytes);
@@ -1012,6 +1017,7 @@ int main( int argc, char* argv[] )
 			*(links+i)=0;
 			mes_queue_init(queues+i);
 			*(lspeeds+i)=0;
+			*(link_incr+i)=0;
 		}
 
 		// LCM of the speed array
@@ -1073,7 +1079,7 @@ int main( int argc, char* argv[] )
 				}
 				if (verbose) printf(" - Relative speed %d\n",*(lspeeds+j*nodes+k));
 
-				// Computung the LCM of the speed array
+				// Computung the LCM and the GCD of the speed array
 				speed_lcm=LCM(speed_lcm,*(lspeeds+j*nodes+k));
 				speed_gcd=GCD(speed_gcd,*(lspeeds+j*nodes+k));
 			}
@@ -1251,6 +1257,12 @@ int main( int argc, char* argv[] )
 			*(nspeeds+i)=*(nspeeds+i)/speed_gcd;
 		}
 
+		for (i=0 ; i < nodes*nodes ; i++) {
+			if (*(lspeeds+i)!=0) {
+				*(lspeeds+i)=*(lspeeds+i)/speed_gcd;
+			}
+		}
+
 		speed_lcm=speed_lcm/speed_gcd;
 		speed_gcd=1;
 
@@ -1267,6 +1279,21 @@ int main( int argc, char* argv[] )
 			if (verbose) printf(" - %d",*(nspeeds+i));
 		}
 		*(ex_incr+i)=speed_lcm/(*(nspeeds+i));
+	}
+	if (verbose) printf("\n\n");
+
+	// Compute the increments and eventually is verbose print the speed matrix
+	if (verbose) printf("Speed links matrix\n");
+	for (i=0,j=0 ; i < nodes*nodes ; i++) {
+		if (*(lspeeds+i)!=0) {
+			if (j==0) {
+				if (verbose) printf("%d",*(lspeeds+i));
+			} else {
+				if (verbose) printf(" - %d",*(lspeeds+i));
+			}
+			*(link_incr+i)=speed_lcm/(*(lspeeds+i));
+			j++;
+		}
 	}
 	if (verbose) printf("\n\n");
 
@@ -1457,13 +1484,13 @@ int main( int argc, char* argv[] )
 	filen = malloc(50*sizeof(char));
 
 
-	if (verbose) printf("Starting simulation:\n",l);
+	if (verbose) printf("Starting simulation:\n");
 
 
 	// Main simulation cycle
-	for (l=1;l<sim_time;l++) {
+	for (timetick=1;timetick<sim_time;timetick++) {
 
-		if (verbose) printf(" - Time %d:\n",l);
+		if (verbose) printf(" - Time %d:\n",timetick);
  
 		// Set the arguments to our compute kernel
 		err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_ex_stat);
@@ -1476,7 +1503,7 @@ int main( int argc, char* argv[] )
 		err |= clSetKernelArg(kernel, 7, sizeof(unsigned int), &messtypes);
  		err |= clSetKernelArg(kernel, 8, sizeof(unsigned int), &registers);
 		err |= clSetKernelArg(kernel, 9, sizeof(unsigned int), &nodes);
-		err |= clSetKernelArg(kernel, 10, sizeof(unsigned int), &l);
+		err |= clSetKernelArg(kernel, 10, sizeof(unsigned int), &timetick);
 		if (err != CL_SUCCESS)
 		{
 			fprintf(stderr, "Failed to set kernel arguments! %d\n", err);
@@ -1495,6 +1522,7 @@ int main( int argc, char* argv[] )
 		clFinish(queue);
 	
 		// Read the results from the device
+		err=clEnqueueReadBuffer(queue, d_ex_next, CL_TRUE, 0, nodes*bytes, ex_next, 0, NULL, NULL );
 		err=clEnqueueReadBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes*bytes, ex_stat, 0, NULL, NULL );
 		err|=clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL );
 		err|=clEnqueueReadBuffer(queue, d_messages_out, CL_TRUE, 0, nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL );
@@ -1516,7 +1544,7 @@ int main( int argc, char* argv[] )
 			}
 
 			if ((!strcmp(output_target,"dot"))||(!strcmp(output_target,"neato"))) {
-				sprintf(filen,"outfile%04d.png",l);
+				sprintf(filen,"outfile%04d.png",timetick);
 				fp=fopen(filen,"w");
 				gvLayout (gvc, dsgraph, output_target);
 				gvRender (gvc, dsgraph, "png", fp);
@@ -1537,8 +1565,8 @@ int main( int argc, char* argv[] )
 			tedim = gdImageCreateTrueColor(tedimx,tedimy);
 			default_layout(&tedim,tedimx,tedimy);
 			startdrawx=nodes_layout(&tedim,tedimx,tedimy, ithnode, nodes);
-			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,l,&teddatas,startdrawx);
-			sprintf(filen,"tedfile%04d.png",l);
+			step_layout(&tedim, tedimx, tedimy, messages, message_defaults, nodes, messtypes,timetick,&teddatas,startdrawx);
+			sprintf(filen,"tedfile%04d.png",timetick);
 			tedout=fopen(filen,"wb");
 			gdImagePng(tedim,tedout);
 			fclose(tedout);
@@ -1584,11 +1612,11 @@ int main( int argc, char* argv[] )
 					}
 				}
 
-//				if (messchck==1) {
-//					mes_queue_push(queues+(i*nodes+j), messtypes, messages+(i*nodes+j)*messtypes);
+				if (messchck==1) {
+					mes_queue_push(queues+(i*nodes+j), messtypes, messages+(i*nodes+j)*messtypes,timetick+*(link_incr+(i*nodes+j)));
 //					printf("Queue lenght: %d ",mes_queue_count(queues+(i*nodes+j), messtypes));
 //					mes_queue_trav(queues+(i*nodes+j), messtypes);
-//				}
+				}
 			}
 
 			if (verbose) printf("\n");
@@ -1598,13 +1626,44 @@ int main( int argc, char* argv[] )
 		if (bypass_ending==0) {	
 			if (check_end(states,messages,nodes,ending_states,ending_messages,registers,messtypes) == 1) break;
 		}
-	
-		tempm=d_messages_in;
-		d_messages_in=d_messages_out;
-		d_messages_out=tempm;
+
+		// Resetting the messages array to defaults
+		if (opmode==1) {
+			defaults(states,messages,nodes,-1);
+		} else {
+			lua_defaults(L,ithnode,states,messages,nodes,-1,registers,messtypes,message_defaults);
+		}
+
+		err = clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
+
+		for (i=0 ; i < nodes ; i++) {
+			for (j=0 ; j < nodes ; j++) {
+				if ((*(ex_next+j)<=timetick+1)&&(queues+(i*nodes+j)!=NULL)) {
+					int * message;
+//					mes_queue_trav(queues+(i*nodes+j), messtypes);
+					message=mes_queue_timedpop(queues+(i*nodes+j),messtypes,timetick+1);
+					if (message!=NULL) {
+//						printf("PUNT out %d %d %p\n",i,j,message);
+						for(l=0; l<messtypes; l++){
+							*(messages+(i*nodes+j)*messtypes+l)=*(message+l);
+//							printf("--- %d \n",*(message+l));
+						}
+						free(message);
+					}
+				}
+			}
+		}
+
+		err = clEnqueueWriteBuffer(queue, d_messages_in, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
+		clFinish(queue);
+
+//		tempm=d_messages_in;
+//		d_messages_in=d_messages_out;
+//		d_messages_out=tempm;
+
 	}
 
-	if (lua_check_report(L, "TIME_COMPLEXITY") == 1) printf("Time Complexity: %d\n",l);
+	if (lua_check_report(L, "TIME_COMPLEXITY") == 1) printf("Time Complexity: %d\n",timetick);
 	if (lua_check_report(L, "MESSAGE_COMPLEXITY") == 1) printf("Message Complexity: %ld\n",messcompl);
 
 
@@ -1625,6 +1684,9 @@ int main( int argc, char* argv[] )
 	free(ex_next);
 	free(ex_incr);
 	free(ex_stat);
+	free(nspeeds);
+	free(lspeeds);
+	free(link_incr);
 	free(queues);
 	free(links);
 	free(states);

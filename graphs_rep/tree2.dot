@@ -6,23 +6,23 @@ digraph "test" {
 "N4" [rspeed="10"];
 "N5" [rspeed="10"];
 "N6" [rspeed="10"];
-"N7" [rspeed="3"];
+"N7" [rspeed="10"];
 
-"N1" -> "N2" [rspeed="2"];
-"N2" -> "N1" [rspeed="2"];
+"N1" -> "N2" [rspeed="10"];
+"N2" -> "N1" [rspeed="10"];
 
-"N1" -> "N3" [rspeed="2"];
-"N3" -> "N1" [rspeed="2"];
+"N1" -> "N3" [rspeed="10"];
+"N3" -> "N1" [rspeed="10"];
 
-"N2" -> "N4" [rspeed="2"];
-"N4" -> "N2" [rspeed="2"];
+"N2" -> "N4" [rspeed="10"];
+"N4" -> "N2" [rspeed="10"];
 
-"N2" -> "N5" [rspeed="2"];
-"N5" -> "N2" [rspeed="2"];
+"N2" -> "N5" [rspeed="10"];
+"N5" -> "N2" [rspeed="10"];
 
-"N3" -> "N6" [rspeed="2"];
-"N6" -> "N3" [rspeed="2"];
+"N3" -> "N6" [rspeed="10"];
+"N6" -> "N3" [rspeed="10"];
 
-"N3" -> "N7" [rspeed="2"];
-"N7" -> "N3" [index = "8",rspeed="2"];
+"N3" -> "N7" [rspeed="10"];
+"N7" -> "N3" [index = "8",rspeed="10"];
 }
