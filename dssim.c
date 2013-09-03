@@ -16,6 +16,42 @@
 #define ARRFIX 10.0
 #define ARRFF 4.0
 
+
+
+/* the flag definitions */
+#define EXEC_RESET	0x00
+
+#define EXEC_RUN	0x01
+#define EXEC_STATE	0x02
+#define EXEC_MESSAGE	0x04
+/*
+			0x08
+			0x10
+			0x20
+			0x40
+			0x80
+*/
+
+/* macros to manipulate the executuin status */
+#define RESET_EXEC(x)		(x = EXEC_RESET)
+
+#define SET_RUN(x)		(x |= EXEC_RUN)
+#define SET_STATE(x)		(x |= EXEC_STATE)
+#define SET_MESSAGE(x)		(x |= EXEC_MESSAGE)
+
+#define UNSET_RUN(x)		(x &= (~EXEC_RUN))
+#define UNSET_STATE(x)		(x &= (~EXEC_STATE))
+#define UNSET_MESSAGE(x)	(x &= (~EXEC_MESSAGE))
+
+#define TOGGLE_RUN(x)		(x ^= EXEC_RUN)
+#define TOGGLE_STATE(x)		(x ^= EXEC_STATE)
+#define TOGGLE_MESSAGE(x)	(x ^= EXEC_MESSAGE)
+
+/* these evaluate to non-zero if the flag is set */
+#define IS_RUN(x)		(x & EXEC_RUN)
+#define IS_STATE(x)		(x & EXEC_STATE)
+#define IS_MESSAGE(x)		(x & EXEC_MESSAGE)
+
 #include "transformer.c"
 #include "messages.c"
 
@@ -997,7 +1033,7 @@ int main( int argc, char* argv[] )
 
 			// Every node compute at time 1
 			*(ex_next+i)=1;
-			*(ex_stat+i)=0;
+			RESET_EXEC(*(ex_stat+i));
 
 			// Computung the LCM of the speed array
 			speed_lcm=LCM(speed_lcm,*(nspeeds+i));
@@ -1528,7 +1564,7 @@ int main( int argc, char* argv[] )
 					}
 				}
 				printf("\n");
-				printf("   Node %s exit status: %d\n",(*(ithnode+i))->name,*(ex_stat+i));
+				printf("   Node %s flags: Executed %d\n",(*(ithnode+i))->name,IS_RUN(*(ex_stat+i)));
 			}
 			if (verbose) {
 				printf("   Node %s messages: ",(*(ithnode+i))->name);

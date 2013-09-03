@@ -1,4 +1,5 @@
-common_headers='#define NO 0<<<CR>>>#define YES 1<<<CR>>><<<CR>>>'
+common_headers='#define NO 0<<<CR>>>#define YES 1<<<CR>>><<<CR>>>#define EXEC_RESET 0x00<<<CR>>><<<CR>>>#define EXEC_RUN 0x01<<<CR>>>#define EXEC_STATE 0x02<<<CR>>>#define EXEC_MESSAGE 0x04<<<CR>>><<<CR>>>#define RESET_EXEC(x) (x = EXEC_RESET)<<<CR>>><<<CR>>>#define SET_RUN(x) (x |= EXEC_RUN)<<<CR>>>#define SET_STATE(x) (x |= EXEC_STATE)<<<CR>>>#define SET_MESSAGE(x) (x |= EXEC_MESSAGE)<<<CR>>><<<CR>>>'
+
 
 -- Generates the kernel defines
 function defines()
@@ -47,10 +48,10 @@ function header()
 
 	result=result..'\t\t//Processing the execution or not<<<CR>>>'
 	result=result..'\t\tif (*(ex_next+nid) <= timetick ) {<<<CR>>>'
-	result=result..'\t\t\t*(ex_stat+nid)=1;<<<CR>>>'
+	result=result..'\t\t\tSET_RUN(*(ex_stat+nid));<<<CR>>>'
 	result=result..'\t\t\t*(ex_next+nid)=timetick+(*(ex_incr+nid));<<<CR>>>'
 	result=result..'\t\t} else {<<<CR>>>'
-	result=result..'\t\t\t*(ex_stat+nid)=0;<<<CR>>>'
+	result=result..'\t\t\tRESET_EXEC(*(ex_stat+nid));<<<CR>>>'
 	result=result..'\t\t\treturn;<<<CR>>>'
 	result=result..'\t\t}<<<CR>>>'
 
