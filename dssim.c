@@ -708,7 +708,27 @@ void step_layout(gdImagePtr * tedim, int tedimx, int tedimy, int * messages, int
 	}
 }
 
+int LCM(int n,int m) {
+	int lcm,h;
+	h=GCD(n,m);
 
+	lcm=(n*m)/(h);
+	return lcm;
+}
+     
+int GCD(int n, int m) {
+	int c;
+	if(n<m) {
+		c=n; n=m; m=c;
+	}
+	
+	while (m != 0) {
+		int r=n%m;
+		n=m;
+		m=r;
+	}
+	return n;
+}
 
 int main( int argc, char* argv[] )
 {
@@ -764,11 +784,14 @@ int main( int argc, char* argv[] )
 
 	// Entity relative speed and next execution array
 	int * nspeeds;
-	long * nnextexec;
+	int * ex_next;
+	int * ex_incr;
+	int * ex_stat;
+	int speed_lcm;
+	int speed_gcd;
 
 	// Links relative speed and next availybility array
 	int * lspeeds;
-	long * lnextavail;
 
  	// The links matrix is a nodes x nodes which stores 0 if there in not a link x->y, !=0 otherwise (in the future it may contain same sort of link weight)
 	int * links;
@@ -937,22 +960,26 @@ int main( int argc, char* argv[] )
 		// Allocate memory for ithnode
 		ithnode = (Agnode_t **) malloc(nodes*sizeof(Agnode_t *));
 
-		// Allocate memory for node speeds and nnextexec
+		// Allocate memory for node speeds and ex_next and ex_incr and ex_stat
 		nspeeds = (int *) malloc(nodes*sizeof(int));
-		nnextexec = (long *) malloc(nodes*sizeof(long));
+		ex_next = (int *) malloc(nodes*sizeof(int));
+		ex_incr = (int *) malloc(nodes*sizeof(int));
+		ex_stat = (int *) malloc(nodes*sizeof(int));
 
 		// Allocate memory for link speeds
 		lspeeds = (int *) malloc(nodes*nodes*sizeof(int));
-		lnextavail = (long *) malloc(nodes*nodes*sizeof(long));
 
-		// Allocate memory for the link matrix and initialize it and initialize the messages queue and the nnextexec
+		// Allocate memory for the link matrix and initialize it and initialize the messages queue and the lspeeds
 		links = (int*)malloc(nodes*nodes*bytes);
 		queues = (struct mes_queue *) malloc(nodes*nodes*sizeof(struct mes_queue));
 		for (i=0;i<nodes*nodes;i++) {
 			*(links+i)=0;
 			mes_queue_init(queues+i);
-			*(lnextavail+i)=0;
+			*(lspeeds+i)=0;
 		}
+
+		// LCM of the speed array
+		speed_lcm=1;
 
 		// Populate the id->node resolution
 		for (inode=agfstnode(dsgraph),i=0;inode!=NULL;inode=agnxtnode(dsgraph,inode),i++) {
@@ -967,7 +994,19 @@ int main( int argc, char* argv[] )
 				*(nspeeds+i)=1;
 			}
 			if (verbose) printf(" - Relative speed %d\n",*(nspeeds+i));
-			*(nnextexec+i)=0;
+
+			// Every node compute at time 1
+			*(ex_next+i)=1;
+			*(ex_stat+i)=0;
+
+			// Computung the LCM of the speed array
+			speed_lcm=LCM(speed_lcm,*(nspeeds+i));
+
+			if (i==0) {
+				speed_gcd=*(nspeeds+i);
+			} else {
+				speed_gcd=GCD(speed_gcd,*(nspeeds+i));
+			}
 		}
 
 		if (verbose) printf("%d nodes imported\n\n",nodes);
@@ -997,6 +1036,10 @@ int main( int argc, char* argv[] )
 					*(lspeeds+j*nodes+k)=1;
 				}
 				if (verbose) printf(" - Relative speed %d\n",*(lspeeds+j*nodes+k));
+
+				// Computung the LCM of the speed array
+				speed_lcm=LCM(speed_lcm,*(lspeeds+j*nodes+k));
+				speed_gcd=GCD(speed_gcd,*(lspeeds+j*nodes+k));
 			}
 		}
 
@@ -1163,11 +1206,41 @@ int main( int argc, char* argv[] )
 		ending(ending_states,ending_messages,registers,messtypes);
  	}
 
+	if (verbose) printf("Speed LCM %d:\n",speed_lcm);
+	if (verbose) printf("Speed GCD %d:\n\n",speed_gcd);
+
+	// Eventually rescaling the speed matrices
+	if (speed_gcd!=1) {
+	 	for (i=0 ; i < nodes ; i++) {
+			*(nspeeds+i)=*(nspeeds+i)/speed_gcd;
+		}
+
+		speed_lcm=speed_lcm/speed_gcd;
+		speed_gcd=1;
+
+		printf("Normalized Speed LCM %d:\n",speed_lcm);
+		printf("Normalized Speed GCD %d:\n\n",speed_gcd);
+	}
+
+	// Compute the increments and eventually is verbose print the speed matrix
+	if (verbose) printf("Speed node matrix\n");
+	for (i=0 ; i < nodes ; i++) {
+		if (i==0) {
+			if (verbose) printf("%d",*(nspeeds+i));
+		} else {
+			if (verbose) printf(" - %d",*(nspeeds+i));
+		}
+		*(ex_incr+i)=speed_lcm/(*(nspeeds+i));
+	}
+	if (verbose) printf("\n\n");
 
 	long int messcompl=0;
 
 
 	// Device buffers
+	cl_mem d_ex_next;
+	cl_mem d_ex_incr;
+	cl_mem d_ex_stat;
 	cl_mem d_links;
 	cl_mem d_states;
 	cl_mem d_messages_in;
@@ -1260,6 +1333,9 @@ int main( int argc, char* argv[] )
 	}
  
 	// Create the input and output arrays in device memory for our calculation
+	d_ex_incr = clCreateBuffer(context, CL_MEM_READ_ONLY, nodes*bytes, NULL, NULL);
+	d_ex_next = clCreateBuffer(context, CL_MEM_READ_WRITE, nodes*bytes, NULL, NULL);
+	d_ex_stat = clCreateBuffer(context, CL_MEM_READ_WRITE, nodes*bytes, NULL, NULL);
 	d_links = clCreateBuffer(context, CL_MEM_READ_ONLY, nodes*nodes*bytes, NULL, NULL);
 	d_states = clCreateBuffer(context, CL_MEM_READ_WRITE, nodes*registers*bytes, NULL, NULL);
 	d_messages_in = clCreateBuffer(context, CL_MEM_READ_WRITE, nodes*nodes*messtypes*bytes, NULL, NULL);
@@ -1283,6 +1359,9 @@ int main( int argc, char* argv[] )
 		lua_defaults(L,ithnode,states,messages,nodes,0,registers,messtypes,message_defaults);
 	}
 
+	err |= clEnqueueWriteBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes*bytes, ex_stat, 0, NULL, NULL);
+	err |= clEnqueueWriteBuffer(queue, d_ex_incr, CL_TRUE, 0, nodes*bytes, ex_incr, 0, NULL, NULL);
+	err |= clEnqueueWriteBuffer(queue, d_ex_next, CL_TRUE, 0, nodes*bytes, ex_next, 0, NULL, NULL);
 	err |= clEnqueueWriteBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL);
 	err |= clEnqueueWriteBuffer(queue, d_messages_in, CL_TRUE, 0,  nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL);
 
@@ -1338,10 +1417,12 @@ int main( int argc, char* argv[] )
 		return EXIT_FAILURE;
 	}
 
-	if (verbose) printf("Starting simulation:\n",l);
-
 	char * filen;
 	filen = malloc(50*sizeof(char));
+
+
+	if (verbose) printf("Starting simulation:\n",l);
+
 
 	// Main simulation cycle
 	for (l=1;l<sim_time;l++) {
@@ -1349,13 +1430,17 @@ int main( int argc, char* argv[] )
 		if (verbose) printf(" - Time %d:\n",l);
  
 		// Set the arguments to our compute kernel
-		err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_links);
-		err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_states);
-		err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_messages_in);
-		err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &d_messages_out);
-		err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &messtypes);
- 		err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &registers);
-		err |= clSetKernelArg(kernel, 6, sizeof(unsigned int), &nodes);
+		err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_ex_stat);
+		err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_ex_incr);
+		err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_ex_next);
+		err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &d_links);
+		err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &d_states);
+		err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &d_messages_in);
+		err |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &d_messages_out);
+		err |= clSetKernelArg(kernel, 7, sizeof(unsigned int), &messtypes);
+ 		err |= clSetKernelArg(kernel, 8, sizeof(unsigned int), &registers);
+		err |= clSetKernelArg(kernel, 9, sizeof(unsigned int), &nodes);
+		err |= clSetKernelArg(kernel, 10, sizeof(unsigned int), &l);
 		if (err != CL_SUCCESS)
 		{
 			fprintf(stderr, "Failed to set kernel arguments! %d\n", err);
@@ -1374,7 +1459,8 @@ int main( int argc, char* argv[] )
 		clFinish(queue);
 	
 		// Read the results from the device
-		err=clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL );
+		err=clEnqueueReadBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes*bytes, ex_stat, 0, NULL, NULL );
+		err|=clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes*registers*bytes, states, 0, NULL, NULL );
 		err|=clEnqueueReadBuffer(queue, d_messages_out, CL_TRUE, 0, nodes*nodes*messtypes*bytes, messages, 0, NULL, NULL );
 
 		if (pngout) {
@@ -1442,6 +1528,7 @@ int main( int argc, char* argv[] )
 					}
 				}
 				printf("\n");
+				printf("   Node %s exit status: %d\n",(*(ithnode+i))->name,*(ex_stat+i));
 			}
 			if (verbose) {
 				printf("   Node %s messages: ",(*(ithnode+i))->name);
@@ -1486,6 +1573,9 @@ int main( int argc, char* argv[] )
 
 
 	// release OpenCL resources
+	clReleaseMemObject(d_ex_next);
+	clReleaseMemObject(d_ex_incr);
+	clReleaseMemObject(d_ex_stat);
 	clReleaseMemObject(d_links);
 	clReleaseMemObject(d_states);
 	clReleaseMemObject(d_messages_in);
@@ -1496,8 +1586,9 @@ int main( int argc, char* argv[] )
 	clReleaseContext(context);
 	
 	//release host memory
-	free(nnextexec);
-	free(lnextavail);
+	free(ex_next);
+	free(ex_incr);
+	free(ex_stat);
 	free(queues);
 	free(links);
 	free(states);

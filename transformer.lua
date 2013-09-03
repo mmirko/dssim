@@ -45,6 +45,15 @@ function header()
 	result=result..'\t//Make sure we do not go out of bounds<<<CR>>>'
 	result=result..'\tif (nid < nodes) {<<<CR>>>'
 
+	result=result..'\t\t//Processing the execution or not<<<CR>>>'
+	result=result..'\t\tif (*(ex_next+nid) <= timetick ) {<<<CR>>>'
+	result=result..'\t\t\t*(ex_stat+nid)=1;<<<CR>>>'
+	result=result..'\t\t\t*(ex_next+nid)=timetick+(*(ex_incr+nid));<<<CR>>>'
+	result=result..'\t\t} else {<<<CR>>>'
+	result=result..'\t\t\t*(ex_stat+nid)=0;<<<CR>>>'
+	result=result..'\t\t\treturn;<<<CR>>>'
+	result=result..'\t\t}<<<CR>>>'
+
 	return result
 end
 
@@ -315,7 +324,7 @@ end
 
 -- The kernel prototype
 function prototype(protocol_name)
-	result='__kernel void '..protocol_name..'(\t__global int *links,<<<CR>>>\t\t\t\t__global int *states,<<<CR>>>\t\t\t\t__global int *messages_in,<<<CR>>>\t\t\t\t__global int *messages_out,<<<CR>>>\t\t\t\tconst unsigned int messtypes,<<<CR>>>\t\t\t\tconst unsigned int registers,<<<CR>>>\t\t\t\tconst unsigned int nodes)<<<CR>>>'
+	result='__kernel void '..protocol_name..'(\t__global int * ex_stat,<<<CR>>>\t\t\t\t__global int * ex_incr,<<<CR>>>\t\t\t\t__global int * ex_next,<<<CR>>>\t\t\t\t__global int *links,<<<CR>>>\t\t\t\t__global int *states,<<<CR>>>\t\t\t\t__global int *messages_in,<<<CR>>>\t\t\t\t__global int *messages_out,<<<CR>>>\t\t\t\tconst unsigned int messtypes,<<<CR>>>\t\t\t\tconst unsigned int registers,<<<CR>>>\t\t\t\tconst unsigned int nodes,<<<CR>>>\t\t\t\tconst unsigned int timetick)<<<CR>>>'
 	return result
 end
 

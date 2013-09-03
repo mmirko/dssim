@@ -6,13 +6,14 @@
 struct mes_queue {
 	struct list_head list;
 	int * message;
+	int avail_time;
 };
 
 void mes_queue_init(struct mes_queue * queue) {
 	INIT_LIST_HEAD(&(queue->list));
 }
 
-void mes_queue_push(struct mes_queue * queue, int messtypes, int * message) {
+void mes_queue_push(struct mes_queue * queue, int messtypes, int * message, int avail_time) {
 	unsigned int i;
 	struct mes_queue *tmp;
 
@@ -22,6 +23,7 @@ void mes_queue_push(struct mes_queue * queue, int messtypes, int * message) {
 	for(i=0; i<messtypes; i++){
 		*(tmp->message+i)=*(message+i);
 	}
+	tmp->avail_time=avail_time;
 	list_add_tail(&(tmp->list), &(queue->list));
 }
 
@@ -34,6 +36,20 @@ int * mes_queue_pop(struct mes_queue * queue, int messtypes) {
 		tmp= list_entry(pos, struct mes_queue, list);
 		list_del(pos);
 		result=tmp->message;
+		free(tmp);
+		return result;
+	}
+}
+
+int * mes_queue_timedpop(struct mes_queue * queue, int messtypes,int curr_time) {
+	int * result=NULL;
+	struct list_head *pos, *q;
+	struct mes_queue *tmp;
+
+	list_for_each_safe(pos, q,  &(queue->list)){
+		tmp= list_entry(pos, struct mes_queue, list);
+		list_del(pos);
+		if (tmp->avail_time<=curr_time) result=tmp->message;
 		free(tmp);
 		return result;
 	}
@@ -57,6 +73,7 @@ void mes_queue_trav(struct mes_queue * queue, int messtypes) {
 
 	list_for_each(pos, &(queue->list)){
 		tmp= list_entry(pos, struct mes_queue, list);
+		printf ("%d ",tmp->avail_time);
 		for(i=0; i<messtypes; i++){
 			if (i==0) {
 				printf("(%d",*(tmp->message+i));
@@ -67,6 +84,7 @@ void mes_queue_trav(struct mes_queue * queue, int messtypes) {
 		printf(")");
 	}
 }
+
 /*
 int main(int argc, char **argv){
 	unsigned int i;
@@ -78,8 +96,8 @@ int main(int argc, char **argv){
 
 	mes_queue_init(&qq);
 
-	mes_queue_push(&qq,3,testmess1);
-	mes_queue_push(&qq,3,testmess2);
+	mes_queue_push(&qq,3,testmess1,23);
+	mes_queue_push(&qq,3,testmess2,2);
 
 	mes_queue_trav(&qq,3);
 
