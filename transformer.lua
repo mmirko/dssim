@@ -714,3 +714,29 @@ function check_report(report_name)
 	end
 	return nil
 end
+
+-- Restrictions
+
+-- Get the number of restrictions
+function get_restrictions_num()
+	if type(restrictions) ~= 'table' then
+		return 0
+	end
+	num=0
+	for k,v in pairs(restrictions) do num=num+1 end
+	return num
+end
+
+-- Get the name of a restriction
+function get_restriction_name(choosen)
+	num=0
+	for k,v in pairs(restrictions) do
+		if choosen==num then
+			return v
+		end
+		num=num+1
+	end
+	return num
+end
+
+

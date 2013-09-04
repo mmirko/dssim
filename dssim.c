@@ -52,6 +52,13 @@
 #define IS_STATE(x)		(x & EXEC_STATE)
 #define IS_MESSAGE(x)		(x & EXEC_MESSAGE)
 
+// Restrictions
+
+#define REST_T_INDEX		0
+#define REST_T_VALUE		0x01
+#define REST_T_SET(x)		(x[REST_T_INDEX] |= REST_T_VALUE)
+#define REST_T_CHECK(x)		(x[REST_T_INDEX] & REST_T_VALUE)
+
 #include "transformer.c"
 #include "messages.c"
 
@@ -778,6 +785,11 @@ int main( int argc, char* argv[] )
 	// Time
 	int timetick;
 
+	// Restrictions;
+	unsigned char restrictions[] = {0,0};
+	char * rest_name;
+	int rest_num=0;
+
 	// The protocol filename
 	char * protocol_file = NULL;
 
@@ -1142,6 +1154,25 @@ int main( int argc, char* argv[] )
 			exit(1);
 		}
 
+
+		// Get the number of restrictions
+		lua_getglobal(L, "get_restrictions_num");
+		lua_call(L,0,1);
+		rest_num=lua_tointeger(L, -1);
+		lua_pop(L,1);
+
+		for (l=0;l<rest_num;l++) {
+			// Getting the restriction name
+			lua_getglobal(L, "get_restriction_name");
+			lua_pushinteger(L,l);
+			lua_call(L,1,1);
+			rest_name=(char *) lua_tostring(L, -1);
+			if (!strcmp(rest_name,"T")) {
+				REST_T_SET(restrictions);
+			}
+			lua_pop(L,1);
+		}
+
 		// Find out the number of protocol registers
 		lua_getglobal(L, "num_registers");
 		lua_call(L,0,1);
@@ -1248,26 +1279,42 @@ int main( int argc, char* argv[] )
 		ending(ending_states,ending_messages,registers,messtypes);
  	}
 
-	if (verbose) printf("Speed LCM %d:\n",speed_lcm);
-	if (verbose) printf("Speed GCD %d:\n\n",speed_gcd);
-
-	// Eventually rescaling the speed matrices
-	if (speed_gcd!=1) {
+	if (REST_T_CHECK(restrictions)) {
+		if (verbose) printf("Ideal time complexity active, speeds will be ignored.\n");
+		speed_lcm=1;
+		speed_gcd=1;
 	 	for (i=0 ; i < nodes ; i++) {
-			*(nspeeds+i)=*(nspeeds+i)/speed_gcd;
+			*(nspeeds+i)=1;
 		}
 
 		for (i=0 ; i < nodes*nodes ; i++) {
 			if (*(lspeeds+i)!=0) {
-				*(lspeeds+i)=*(lspeeds+i)/speed_gcd;
+				*(lspeeds+i)=1;
 			}
+		}		
+	} else {
+
+		if (verbose) printf("Speed LCM %d:\n",speed_lcm);
+		if (verbose) printf("Speed GCD %d:\n\n",speed_gcd);
+	
+		// Eventually rescaling the speed matrices
+		if (speed_gcd!=1) {
+		 	for (i=0 ; i < nodes ; i++) {
+				*(nspeeds+i)=*(nspeeds+i)/speed_gcd;
+			}
+	
+			for (i=0 ; i < nodes*nodes ; i++) {
+				if (*(lspeeds+i)!=0) {
+					*(lspeeds+i)=*(lspeeds+i)/speed_gcd;
+				}
+			}
+	
+			speed_lcm=speed_lcm/speed_gcd;
+			speed_gcd=1;
+	
+			printf("Normalized Speed LCM %d:\n",speed_lcm);
+			printf("Normalized Speed GCD %d:\n\n",speed_gcd);
 		}
-
-		speed_lcm=speed_lcm/speed_gcd;
-		speed_gcd=1;
-
-		printf("Normalized Speed LCM %d:\n",speed_lcm);
-		printf("Normalized Speed GCD %d:\n\n",speed_gcd);
 	}
 
 	// Compute the increments and eventually is verbose print the speed matrix
@@ -1296,6 +1343,16 @@ int main( int argc, char* argv[] )
 		}
 	}
 	if (verbose) printf("\n\n");
+
+	if (verbose) printf("Checking restrictions:\n");
+
+	if (verbose) {
+		if (REST_T_CHECK(restrictions)) {
+			printf(" - Ideal time complexity\n");
+		}
+	}
+
+	if (verbose) printf("\n");
 
 	long int messcompl=0;
 

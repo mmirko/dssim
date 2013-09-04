@@ -7,6 +7,7 @@ messtypes = { CLOCK = {}, IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
 -- messtypes_new = { CLOCK = "clock", IMPULSE = {"YES"}, BROADCAST = {"SENT"} , IMP = "integer" }
 
 options = { "RESET_MESS" }
+restrictions = { "T" }
 actions = {}
 
 actions[{"STATE_INIT","IMPULSE_YES"}] = 	[[

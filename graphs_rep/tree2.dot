@@ -2,7 +2,7 @@ digraph "test" {
 
 "N1" [rspeed="10"];
 "N2" [rspeed="10"];
-"N3" [rspeed="10"];
+"N3" [rspeed="1"];
 "N4" [rspeed="10"];
 "N5" [rspeed="10"];
 "N6" [rspeed="10"];
