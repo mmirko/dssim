@@ -2,6 +2,7 @@ registers = { STATE = {"IDLE", "INIT"}}
 messtypes = { IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
 options = { "RESET_MESS" }
 actions = {}
+restrictions = { "T" }
 
 actions[{"STATE_INIT","IMPULSE_YES"}] = 	[[
 							set STATE=IDLE;
