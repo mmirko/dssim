@@ -1,8 +1,8 @@
 registers = { STATE = {"IDLE", "INIT", "DONE"}}
 messtypes = { CLOCK = {}, IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
 
--- variables = { a,b }
--- lists = { mylist = { 5 } }
+variables = { a,b }
+lists = { mylist = { 5 } }
 
 -- messtypes_new = { CLOCK = "clock", IMPULSE = {"YES"}, BROADCAST = {"SENT"} , IMP = "integer" }
 

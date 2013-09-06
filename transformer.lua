@@ -63,7 +63,7 @@ function makelists()
 	if (lists) then
 		result=result..'<<<CR>>>\t\t//Local lists<<<CR>>>'
 		for k,v in pairs(lists) do
-			result=result..'\t\t_local int '..string.lower(k)..'['..v..'];<<<CR>>>'
+--			result=result..'\t\t_local int '..string.lower(k)..'['..v..'];<<<CR>>>'
 			result=result..'\t\tint '..string.lower(k)..'_index=0;<<<CR>>>'
 		end
 	end
