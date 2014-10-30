@@ -16,7 +16,8 @@
 #define ARRFIX 10.0
 #define ARRFF 4.0
 
-
+#define MAX_PLATFORMS 8
+#define MAX_DEVICES 64
 
 /* the flag definitions */
 #define EXEC_RESET	0x00
@@ -892,6 +893,12 @@ int main( int argc, char* argv[] )
 	// Bypass the ending check
 	int bypass_ending=0;
 
+	// Show platforms
+	int show_platforms=0;
+
+	// Show devices
+	int show_devices=0;
+
 	// Generate a ted file
 	int ted=0;
 	gdImagePtr tedim;
@@ -905,7 +912,7 @@ int main( int argc, char* argv[] )
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:e")) != -1)
+	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:elL")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -944,6 +951,12 @@ int main( int argc, char* argv[] )
 			break;
 		case 'b':
 			bypass_ending=1;
+			break;
+		case 'l':
+			show_platforms=1;
+			break;
+		case 'L':
+			show_devices=1;
 			break;
 		case 'e':
 			ted=1;
@@ -1390,20 +1403,43 @@ int main( int argc, char* argv[] )
 	cl_uint ret_num_devices;
 	cl_uint ret_num_platforms;
 
-	platform_ids=(cl_platform_id *) malloc(2*sizeof(cl_platform_id));
-	err = clGetPlatformIDs(2, platform_ids, &ret_num_platforms);
+	platform_ids=(cl_platform_id *) malloc(MAX_PLATFORMS*sizeof(cl_platform_id));
+	err = clGetPlatformIDs(MAX_PLATFORMS, platform_ids, &ret_num_platforms);
 
-	if (verbose) printf("Found %d platforms\n", ret_num_platforms);
+	cl_device_id * device_ids;
+	int dev_offset=0;
+	device_ids=(cl_device_id *) malloc(MAX_DEVICES*sizeof(cl_device_id));
+
+	if (verbose || show_platforms) printf("Found %d platforms\n", ret_num_platforms);
+
+	if (verbose || show_platforms) {
+		char* pname;
+		pname=malloc(1024*sizeof(char));
+		for (i=0 ; i < ret_num_platforms; i++) {
+			clGetPlatformInfo(*(platform_ids+i),CL_PLATFORM_NAME,1024,pname,NULL);
+			printf("\t%s\n",pname);
+		}
+		free(pname);
+	}
+	
+	if (verbose || show_devices) printf("Devices\n");
+	if (verbose || show_devices) {
+		char* pname;
+		pname=malloc(1024*sizeof(char));
+		for (i=0 ; i < ret_num_platforms; i++) {
+			err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_CPU, MAX_DEVICES-dev_offset, device_ids+dev_offset, &ret_num_devices);
+			for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
+				clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
+				printf("\t%d - %s\n",j,pname);
+			}
+		}
+	}
 
 	for (i=0 ; i < ret_num_platforms; i++)
 	{
 		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_GPU, 1, &device_id, &ret_num_devices);
 		if (ret_num_devices==1) break;
 	}
-
-
-
-
 
 	// Bind to platform
 //	err = clGetPlatformIDs(2, cpPlatforms, NULL);
