@@ -1438,33 +1438,42 @@ int main( int argc, char* argv[] )
 	pname=malloc(1024*sizeof(char));
 	for (i=0 ; i < ret_num_platforms; i++) {
 		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_CPU, MAX_DEVICES-dev_offset, device_ids+dev_offset, &ret_num_devices);
-		for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
-			clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
-			if (verbose || show_devices) printf("\t%d - %s",j,pname);
-			if (choosen_device == j) {
-				device_exists=1;
-				device_id=*(device_ids+j);
-				if (verbose || show_devices) printf(" - ###\n");
-			} else {
-				if (verbose || show_devices) printf("\n");
+		if (err == CL_SUCCESS) {
+			for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
+				clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
+				if (verbose || show_devices) printf("\t%d - %s",j,pname);
+				if (choosen_device == j) {
+					device_exists=1;
+					device_id=*(device_ids+j);
+					if (verbose || show_devices) printf(" - ###\n");
+				} else {
+					if (verbose || show_devices) printf("\n");
+				}
 			}
 		}
 		dev_offset=dev_offset+ret_num_devices;
 		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_GPU, MAX_DEVICES-dev_offset, device_ids+dev_offset, &ret_num_devices);
-		for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
-			clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
-			if (verbose || show_devices) printf("\t%d - %s",j,pname);
-			if (choosen_device == j) {
-				device_exists=1;
-				device_id=*(device_ids+j);
-				if (verbose || show_devices) printf(" - ###\n");
-			} else {
-				if (verbose || show_devices) printf("\n");
+		if (err == CL_SUCCESS) {
+			for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
+				clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
+				if (verbose || show_devices) printf("\t%d - %s",j,pname);
+				if (choosen_device == j) {
+					device_exists=1;
+					device_id=*(device_ids+j);
+					if (verbose || show_devices) printf(" - ###\n");
+				} else {
+					if (verbose || show_devices) printf("\n");
+				}
 			}
+			dev_offset=dev_offset+ret_num_devices;
 		}
-		dev_offset=dev_offset+ret_num_devices;
 	}
 	free(pname);
+
+	if (!device_exists) {
+		fprintf(stderr,"Failed to find a device!\n");
+		return EXIT_FAILURE;
+	}
 
 	// Bind to platform
 //	err = clGetPlatformIDs(2, cpPlatforms, NULL);
