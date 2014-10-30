@@ -527,6 +527,9 @@ void usage()
 	printf("\t\t-t time  - Set the simulation time (default 1000)\n");
 	printf("\t\t-o       - Generate a PNG with a graph for each simulation step\n");
 	printf("\t\t-e       - Generate a PNG with a TED chart for each simulation step\n");
+	printf("\t\t-l       - List OpenCL platforms\n");
+	printf("\t\t-L       - List OpenCL devices\n");
+	printf("\t\t-d id    - Select OpenCL device with the given id\n");
 	printf("\t\t-T type  - Select Graphviz rendering: \"dot\", \"neato\" or \"gtk\"\n");
 	printf("\t\t-b       - Bypass the check of ending condition\n");
 	fflush(stdout);
@@ -899,6 +902,10 @@ int main( int argc, char* argv[] )
 	// Show devices
 	int show_devices=0;
 
+	// Choosen device
+	int choosen_device=0;
+	int device_exists=0;
+
 	// Generate a ted file
 	int ted=0;
 	gdImagePtr tedim;
@@ -912,7 +919,7 @@ int main( int argc, char* argv[] )
 	size_t bytes = sizeof(int);
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:elL")) != -1)
+	while ((c = getopt (argc, argv, "hvbVk:p:g:i:s:ot:T:elLd:")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -945,6 +952,9 @@ int main( int argc, char* argv[] )
 			break;
 		case 't':
 			sim_time=atoi(optarg);
+			break;
+		case 'd':
+			choosen_device=atoi(optarg);
 			break;
 		case 'o':
 			pngout=1;
@@ -1423,23 +1433,38 @@ int main( int argc, char* argv[] )
 	}
 	
 	if (verbose || show_devices) printf("Devices\n");
-	if (verbose || show_devices) {
-		char* pname;
-		pname=malloc(1024*sizeof(char));
-		for (i=0 ; i < ret_num_platforms; i++) {
-			err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_CPU, MAX_DEVICES-dev_offset, device_ids+dev_offset, &ret_num_devices);
-			for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
-				clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
-				printf("\t%d - %s\n",j,pname);
+
+	char* pname;
+	pname=malloc(1024*sizeof(char));
+	for (i=0 ; i < ret_num_platforms; i++) {
+		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_CPU, MAX_DEVICES-dev_offset, device_ids+dev_offset, &ret_num_devices);
+		for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
+			clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
+			if (verbose || show_devices) printf("\t%d - %s",j,pname);
+			if (choosen_device == j) {
+				device_exists=1;
+				device_id=*(device_ids+j);
+				if (verbose || show_devices) printf(" - ###\n");
+			} else {
+				if (verbose || show_devices) printf("\n");
 			}
 		}
+		dev_offset=dev_offset+ret_num_devices;
+		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_GPU, MAX_DEVICES-dev_offset, device_ids+dev_offset, &ret_num_devices);
+		for (j=dev_offset;j<ret_num_devices+dev_offset; j++) {
+			clGetDeviceInfo(*(device_ids+j),CL_DEVICE_NAME,1024,pname,NULL);
+			if (verbose || show_devices) printf("\t%d - %s",j,pname);
+			if (choosen_device == j) {
+				device_exists=1;
+				device_id=*(device_ids+j);
+				if (verbose || show_devices) printf(" - ###\n");
+			} else {
+				if (verbose || show_devices) printf("\n");
+			}
+		}
+		dev_offset=dev_offset+ret_num_devices;
 	}
-
-	for (i=0 ; i < ret_num_platforms; i++)
-	{
-		err = clGetDeviceIDs(*(platform_ids+i), CL_DEVICE_TYPE_GPU, 1, &device_id, &ret_num_devices);
-		if (ret_num_devices==1) break;
-	}
+	free(pname);
 
 	// Bind to platform
 //	err = clGetPlatformIDs(2, cpPlatforms, NULL);
