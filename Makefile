@@ -32,10 +32,10 @@ transformer.c : lua_embedder.py transformer.lua
 	@ ./lua_embedder.py > transformer.c
 
 dssim: dssim.c transformer.c messages.c list.h
-	@ gcc -lOpenCL -o dssim dssim.c -lm -lgvc -llua -lgd -lgraph
+	@ gcc -lOpenCL -o dssim dssim.c -lm -lgvc -llua -lgd -lcgraph
 
 dssim_gen: dssim_gen.c
-	@ gcc -o dssim_gen dssim_gen.c -lm -lgvc -lgraph
+	@ gcc -o dssim_gen dssim_gen.c -lm -lgvc -lcgraph
 
 .PHONY: flooding_early_lattice
 flooding_early_lattice:

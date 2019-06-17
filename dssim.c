@@ -6,7 +6,7 @@
 #include <lauxlib.h>
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
-#include <graphviz/graph.h>
+#include <graphviz/cgraph.h>
 #include <gd.h>
 #include <gdfonts.h>
 
@@ -563,7 +563,7 @@ int search_node_id_from_name(Agnode_t ** ithnode, char * name,int nodes)
 	int i;
 
 	for (i=0;i<nodes;i++) {
-		if (!strcmp(name,(*(ithnode+i))->name)) {
+		if (!strcmp(name,agnameof(*(ithnode+i)))) {
 			return i;
 		}
 	}
@@ -608,13 +608,13 @@ int nodes_layout(gdImagePtr * tedim, int tedimx, int tedimy, Agnode_t ** ithnode
 
 	maxlen=0;
 	for (i=0;i<nodes;i++) {
-		if (strlen((*(ithnode+i))->name) > maxlen) {
-			maxlen=strlen((*(ithnode+i))->name);
+		if (strlen(agnameof(*(ithnode+i))) > maxlen) {
+			maxlen=strlen(agnameof(*(ithnode+i)));
 		}
 	}
 
 	for (i=0;i<nodes;i++) {
-		gdImageString(*tedim, gdFontGetSmall(),2*border,(2*border+i*step)- gdFontGetSmall()->h / 2 ,(*(ithnode+i))->name, white);
+		gdImageString(*tedim, gdFontGetSmall(),2*border,(2*border+i*step)- gdFontGetSmall()->h / 2 ,agnameof(*(ithnode+i)), white);
 		gdImageLine(*tedim,3*border + maxlen * gdFontGetSmall()->w, (2*border+i*step) ,tedimx-2*border,(2*border+i*step) ,white);
 	}
 
@@ -1024,9 +1024,9 @@ int main( int argc, char* argv[] )
 			exit(0);
 		}
 
-		aginit();
+		//aginit();
 
-		dsgraph=agread(fp);
+		dsgraph=agread(fp,0);
 
 		if (verbose) printf("Importing graph nodes:\n");
 
@@ -1060,7 +1060,7 @@ int main( int argc, char* argv[] )
 
 		// Populate the id->node resolution
 		for (inode=agfstnode(dsgraph),i=0;inode!=NULL;inode=agnxtnode(dsgraph,inode),i++) {
-			if (verbose) printf(" - Importing node - %s (Host %p)",inode->name,inode);
+			if (verbose) printf(" - Importing node - %s (Host %p)",agnameof(inode),inode);
 			*(ithnode+i)=inode;
 
 			// Get the node relative speed or eventually 1
@@ -1091,11 +1091,11 @@ int main( int argc, char* argv[] )
 		if (verbose) printf("Importing graph edges:\n");
 
 		for (inode=agfstnode(dsgraph);inode!=NULL;inode=agnxtnode(dsgraph,inode)) {
-			if (verbose) printf(" - Importing node %s edges:\n",inode->name);
+			if (verbose) printf(" - Importing node %s edges:\n",agnameof(inode));
 			for (iedge=agfstout(dsgraph,inode);iedge!=NULL;iedge=agnxtout(dsgraph,iedge)) {
 				// Find the two indexes
-				j=search_node_id(ithnode,iedge->tail,nodes);
-				k=search_node_id(ithnode,iedge->head,nodes);
+				j=search_node_id(ithnode,agtail(iedge),nodes);
+				k=search_node_id(ithnode,aghead(iedge),nodes);
 
 				tempstr=agget(iedge,"index");
 				if ((tempstr!=NULL)&&(strcmp("",tempstr))) {
@@ -1103,7 +1103,7 @@ int main( int argc, char* argv[] )
 				} else {
 					*(links+j*nodes+k)=1;
 				}
-				if (verbose) printf("   - Importing edge (Label %d) - %s (Host %p) -> %s (Host %p)",*(links+j*nodes+k),iedge->tail->name,iedge->tail,iedge->head->name,iedge->head);
+				if (verbose) printf("   - Importing edge (Label %d) - %s (Host %p) -> %s (Host %p)",*(links+j*nodes+k),agnameof(agtail(iedge)),agtail(iedge),agnameof(aghead(iedge)),aghead(iedge));
 
 				// Get the relative link speed or eventually 1
 				tempstr=agget(iedge,"rspeed");
@@ -1559,7 +1559,7 @@ int main( int argc, char* argv[] )
 	if (verbose) {
 		printf("States matrix:\n");
 		for (i=0 ; i < nodes ; i++) {
-			printf("   Node %s registers: ",(*(ithnode+i))->name);
+			printf("   Node %s registers: ",agnameof(*(ithnode+i)));
 			for (j=0 ; j < registers ; j++) {
 				tempstr=id_to_name(L,opmode,0,j,*(states+i*registers+j));
 				if (tempstr != NULL) {
@@ -1575,7 +1575,7 @@ int main( int argc, char* argv[] )
 		printf("Message matrix:\n");
 		for (i=0 ; i < nodes ; i++) {
 			for (j=0 ; j < nodes ; j++) {
-				printf("   Node %s -> %s messages: ",(*(ithnode+i))->name,(*(ithnode+j))->name);
+				printf("   Node %s -> %s messages: ",agnameof(*(ithnode+i)),agnameof(*(ithnode+j)));
 				for (k=0 ; k < messtypes ; k++) {
 					tempstr=id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
 					if (tempstr != NULL) {
@@ -1708,7 +1708,7 @@ int main( int argc, char* argv[] )
 
 		for (i=0 ; i < nodes ; i++) {
 			if (verbose) {
-				printf("   Node %s registers: ",(*(ithnode+i))->name);
+				printf("   Node %s registers: ",agnameof(*(ithnode+i)));
 				for (j=0 ; j < registers ; j++) {
 					tempstr=id_to_name(L,opmode,0,j,*(states+i*registers+j));
 					if (tempstr != NULL) {
@@ -1719,10 +1719,10 @@ int main( int argc, char* argv[] )
 					}
 				}
 				printf("\n");
-				printf("   Node %s flags: Executed %d\n",(*(ithnode+i))->name,IS_RUN(*(ex_stat+i)));
+				printf("   Node %s flags: Executed %d\n",agnameof(*(ithnode+i)),IS_RUN(*(ex_stat+i)));
 			}
 			if (verbose) {
-				printf("   Node %s messages: ",(*(ithnode+i))->name);
+				printf("   Node %s messages: ",agnameof(*(ithnode+i)));
 			}
 
 			for (j=0 ; j < nodes ; j++) {
@@ -1731,7 +1731,7 @@ int main( int argc, char* argv[] )
 					if ( *(messages+(i*nodes+j)*messtypes+k)!=*(message_defaults+k)) {
 						tempstr=id_to_name(L,opmode,1,k,*(messages+(i*nodes+j)*messtypes+k));
 						if (tempstr != NULL) {
-							if (verbose) printf("( %s -> %s ) ",tempstr,(*(ithnode+j))->name);
+							if (verbose) printf("( %s -> %s ) ",tempstr,agnameof(*(ithnode+j)));
 							free(tempstr);
 						}
 						messcompl++;

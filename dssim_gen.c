@@ -6,7 +6,7 @@
 #include <lauxlib.h>
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
-#include <graphviz/graph.h>
+#include <graphviz/cgraph.h>
 
 
 void version()
