@@ -32,7 +32,7 @@ transformer.c : lua_embedder.py transformer.lua
 	@ ./lua_embedder.py > transformer.c
 
 dssim: dssim.c transformer.c messages.c list.h
-	@ gcc -lOpenCL -o dssim dssim.c -lm -lgvc -llua -lgd -lcgraph
+	@ gcc -lOpenCL -o dssim dssim.c -lm -lgvc -llua5.3 -lgd -lcgraph
 
 dssim_gen: dssim_gen.c
 	@ gcc -o dssim_gen dssim_gen.c -lm -lgvc -lcgraph

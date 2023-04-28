@@ -1,9 +1,10 @@
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-#include <lua.h>
-#include <lauxlib.h>
+#include <lua5.3/lua.h>
+#include <lua5.3/lauxlib.h>
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
 #include <graphviz/cgraph.h>
@@ -43,11 +44,11 @@ Agraph_t * hypercube(GVC_t* gvc, int dim)
 		Agnode_t *n1, *n2;
 		Agedge_t *e, *f;
 
-		result=agopen("dsgraph", AGDIGRAPH);
-		n1 = agnode(result, "0");
-		n2 = agnode(result, "1");
-		e = agedge(result, n1, n2);
-		f = agedge(result, n2, n1);
+		result=agopen("dsgraph", Agdirected, NULL);
+		n1 = agnode(result, "0",TRUE);
+		n2 = agnode(result, "1",TRUE);
+		e = agedge(result, n1, n2, NULL, TRUE);
+		f = agedge(result, n2, n1, NULL, TRUE);
 		agsafeset(e, "index", "1", "");
 		agsafeset(f, "index", "1", "");
 	} else {
@@ -67,34 +68,34 @@ Agraph_t * hypercube(GVC_t* gvc, int dim)
 		g1=hypercube(gvc,dim-1);
 		g2=hypercube(gvc,dim-1);
 
-		result=agopen("dsgraph", AGDIGRAPH);
+		result=agopen("dsgraph", Agdirected, NULL);
 
 		for (inode=agfstnode(g1);inode!=NULL;inode=agnxtnode(g1,inode)) {
 			tempstr1[0]='0';
-			strncpy(tempstr1+1,inode->name,dim-1);
+			strncpy(tempstr1+1,agnameof(inode),dim-1);
 			tempstr1[dim]=0;
-			n1 = agnode(result, tempstr1);
+			n1 = agnode(result, tempstr1,TRUE);
 
 		}
 		for (inode=agfstnode(g2);inode!=NULL;inode=agnxtnode(g2,inode)) {
 			tempstr2[0]='1';
-			strncpy(tempstr2+1,inode->name,dim-1);
+			strncpy(tempstr2+1,agnameof(inode),dim-1);
 			tempstr2[dim]=0;
-			n1 = agnode(result, tempstr2);
+			n1 = agnode(result, tempstr2,TRUE);
 		}
 
 		for (inode=agfstnode(g1);inode!=NULL;inode=agnxtnode(g1,inode)) {
 			for (iedge=agfstout(g1,inode);iedge!=NULL;iedge=agnxtout(g1,iedge)) {
 				temps=agget(iedge,"index");	
 				tempstr1[0]='0';
-				strncpy(tempstr1+1,iedge->head->name,dim-1);
+				strncpy(tempstr1+1,agnameof(aghead(iedge)),dim-1);
 				tempstr1[dim]=0;
 				tempstr2[0]='0';
-				strncpy(tempstr2+1,iedge->tail->name,dim-1);
+				strncpy(tempstr2+1,agnameof(agtail(iedge)),dim-1);
 				tempstr2[dim]=0;
-				n1=agnode(result, tempstr1);
-				n2=agnode(result, tempstr2);
-				e=agedge(result,n1,n2);
+				n1=agnode(result, tempstr1,TRUE);
+				n2=agnode(result, tempstr2,TRUE);
+				e=agedge(result,n1,n2, NULL, TRUE);
 				agsafeset(e, "index", temps, "");
 			}
 		}
@@ -103,14 +104,14 @@ Agraph_t * hypercube(GVC_t* gvc, int dim)
 			for (iedge=agfstout(g2,inode);iedge!=NULL;iedge=agnxtout(g2,iedge)) {
 				temps=agget(iedge,"index");	
 				tempstr1[0]='1';
-				strncpy(tempstr1+1,iedge->head->name,dim-1);
+				strncpy(tempstr1+1,agnameof(aghead(iedge)),dim-1);
 				tempstr1[dim]=0;
 				tempstr2[0]='1';
-				strncpy(tempstr2+1,iedge->tail->name,dim-1);
+				strncpy(tempstr2+1,agnameof(agtail(iedge)),dim-1);
 				tempstr2[dim]=0;
-				n1=agnode(result, tempstr1);
-				n2=agnode(result, tempstr2);
-				e=agedge(result,n1,n2);
+				n1=agnode(result, tempstr1,TRUE);
+				n2=agnode(result, tempstr2,TRUE);
+				e=agedge(result,n1,n2, NULL, TRUE);
 				agsafeset(e, "index", temps, "");
 			}
 		}
@@ -119,16 +120,16 @@ Agraph_t * hypercube(GVC_t* gvc, int dim)
 			temps=(char *) malloc(50*sizeof(char));
 			sprintf(temps,"%d",dim);
 			tempstr1[0]='0';
-			strncpy(tempstr1+1,inode->name,dim-1);
+			strncpy(tempstr1+1,agnameof(inode),dim-1);
 			tempstr1[dim]=0;
 			tempstr2[0]='1';
-			strncpy(tempstr2+1,inode->name,dim-1);
+			strncpy(tempstr2+1,agnameof(inode),dim-1);
 			tempstr2[dim]=0;
-			n1=agnode(result, tempstr1);
-			n2=agnode(result, tempstr2);
-			e=agedge(result,n1,n2);
+			n1=agnode(result, tempstr1,TRUE);
+			n2=agnode(result, tempstr2,TRUE);
+			e=agedge(result,n1,n2, NULL, TRUE);
 			agsafeset(e, "index", temps, "");
-			f=agedge(result,n2,n1);
+			f=agedge(result,n2,n1, NULL, TRUE);
 			agsafeset(f, "index", temps, "");
 			free(temps);
 		}
@@ -149,13 +150,13 @@ Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
 	char tempstr1[11];
 	char tempstr2[11];
 
-	result=agopen("dsgraph", AGDIGRAPH);
+	result=agopen("dsgraph", Agdirected, NULL);
 
 	for (i=0;i<n;i++) {
 		for (j=0;j<m;j++) {
 			sprintf(tempstr1,"X%04dY%04d",i,j);
 			tempstr1[10]=0;
-			n1=agnode(result, tempstr1);
+			n1=agnode(result, tempstr1,TRUE);
 		}
 	}
 
@@ -163,62 +164,62 @@ Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
 		for (j=0;j<m;j++) {
 			sprintf(tempstr1,"X%04dY%04d",i,j);
 			tempstr1[10]=0;
-			n1=agnode(result, tempstr1);
+			n1=agnode(result, tempstr1,TRUE);
 
 			if (i==0) {
 				if ((open==0)&&(n>2)) {
 					sprintf(tempstr2,"X%04dY%04d",n-1,j);
 					tempstr2[10]=0;
-					n2=agnode(result, tempstr2);
-					e=agedge(result,n1,n2);
+					n2=agnode(result, tempstr2,TRUE);
+					e=agedge(result,n1,n2,NULL,TRUE);
 				}
 			} else {
 				sprintf(tempstr2,"X%04dY%04d",i-1,j);
 				tempstr2[10]=0;
-				n2=agnode(result, tempstr2);
-				e=agedge(result,n1,n2);
+				n2=agnode(result, tempstr2,TRUE);
+				e=agedge(result,n1,n2,NULL,TRUE);
 			}
 
 			if (i==n-1) {
 				if ((open==0)&&(n>2)) {
 					sprintf(tempstr2,"X%04dY%04d",0,j);
 					tempstr2[10]=0;
-					n2=agnode(result, tempstr2);
-					e=agedge(result,n1,n2);
+					n2=agnode(result, tempstr2,TRUE);
+					e=agedge(result,n1,n2,NULL,TRUE);
 				}
 			} else {
 				sprintf(tempstr2,"X%04dY%04d",i+1,j);
 				tempstr2[10]=0;
-				n2=agnode(result, tempstr2);
-				e=agedge(result,n1,n2);
+				n2=agnode(result, tempstr2,TRUE);
+				e=agedge(result,n1,n2,NULL,TRUE);
 			}
 
 			if (j==0) {
 				if ((open==0)&&(m>2)) {
 					sprintf(tempstr2,"X%04dY%04d",i,m-1);
 					tempstr2[10]=0;
-					n2=agnode(result, tempstr2);
-					e=agedge(result,n1,n2);
+					n2=agnode(result, tempstr2,TRUE);
+					e=agedge(result,n1,n2,NULL,TRUE);
 				}
 			} else {
 				sprintf(tempstr2,"X%04dY%04d",i,j-1);
 				tempstr2[10]=0;
-				n2=agnode(result, tempstr2);
-				e=agedge(result,n1,n2);
+				n2=agnode(result, tempstr2,TRUE);
+				e=agedge(result,n1,n2,NULL,TRUE);
 			}
 
 			if (j==m-1) {
 				if ((open==0)&&(m>2)) {
 					sprintf(tempstr2,"X%04dY%04d",i,0);
 					tempstr2[10]=0;
-					n2=agnode(result, tempstr2);
-					e=agedge(result,n1,n2);
+					n2=agnode(result, tempstr2,TRUE);
+					e=agedge(result,n1,n2,NULL,TRUE);
 				}
 			} else {
 				sprintf(tempstr2,"X%04dY%04d",i,j+1);
 				tempstr2[10]=0;
-				n2=agnode(result, tempstr2);
-				e=agedge(result,n1,n2);
+				n2=agnode(result, tempstr2,TRUE);
+				e=agedge(result,n1,n2,NULL,TRUE);
 			}
 	
 		}

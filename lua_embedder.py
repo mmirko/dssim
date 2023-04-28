@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import os
 
@@ -23,8 +23,8 @@ for filename in filelist:
 
 footer=''
 
-#print header
-print chars
-print queries
-#print footer
+#print (header)
+print (chars)
+print (queries)
+#print (footer)
 
