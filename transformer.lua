@@ -19,7 +19,7 @@ function defines()
 	for k,v in pairs(messtypes) do
 		result=result..'#define MESS_'..k..' '..regi..'<<<CR>>><<<CR>>>'
 		regi=regi+1
-		if table.getn(v) > 0 then
+		if #v > 0 then
 			result=result..'#define '..k..'_NO 0<<<CR>>>'
 			vali=1
 			for k1,v1 in ipairs(v) do
@@ -354,7 +354,7 @@ function transformer(protocol_name)
 	-- This is the received messages
 	opencl_kernel=opencl_kernel..'<<<CR>>>\t\t//Check the received messages<<<CR>>>'
 	for k,v in pairs(messtypes) do
-		if table.getn(v) > 0 then
+		if #v > 0 then
 			for k1,v1 in ipairs(v) do
 				opencl_kernel=opencl_kernel..'\t\tint flag_'..string.lower(k)..'_'..string.lower(v1)..' = NO;<<<CR>>>'
 
@@ -442,7 +442,7 @@ function name_to_id(regormess)
 		if 'MESS_'..k==regormess then
 			return num
 		end
-		if table.getn(v) > 0 then
+		if #v > 0 then
 			if k..'_NO'==regormess then
 				return 0
 			end
@@ -475,7 +475,7 @@ function id_to_name(rtype,cid,lid)
 			if lid==nil then
 				return prefix..k
 			else
-				if table.getn(v) > 0 then
+				if #v > 0 then
 					for k1,v1 in ipairs(v) do
 						if cktab==registers then
 							if k1-1==lid then
@@ -543,7 +543,7 @@ function get_default_mess(reg)
 	regi=0
 	for k,v in pairs(messtypes) do
 		if regi==reg then
-			if table.getn(v) > 0 then
+			if #v > 0 then
 				for k1,v1 in ipairs(v) do
 					for k2,v2 in ipairs(defaults) do
 						if v2==k..'_NO' then
@@ -604,7 +604,7 @@ function get_ending_mess(reg)
 	regi=0
 	for k,v in pairs(messtypes) do
 		if regi==reg then
-			if table.getn(v) > 0 then
+			if #v > 0 then
 				for k1,v1 in ipairs(v) do
 					for k2,v2 in ipairs(ending) do
 						if v2==k..'_NO' then
