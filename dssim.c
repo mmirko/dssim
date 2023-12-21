@@ -3,8 +3,17 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <math.h>
+
+#ifdef LUA_VERSION_53
 #include <lua5.3/lua.h>
 #include <lua5.3/lauxlib.h>
+#endif
+
+#ifdef LUA_VERSION_54
+#include <lua5.4/lua.h>
+#include <lua5.4/lauxlib.h>
+#endif
+
 #include <CL/opencl.h>
 #include <graphviz/gvc.h>
 #include <graphviz/cgraph.h>
