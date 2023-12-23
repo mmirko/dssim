@@ -3,9 +3,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-#include <lua5.3/lua.h>
-#include <lua5.3/lauxlib.h>
-#include <CL/opencl.h>
 #include <graphviz/gvc.h>
 #include <graphviz/cgraph.h>
 

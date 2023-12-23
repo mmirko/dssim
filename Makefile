@@ -15,8 +15,8 @@
 #   with this program; if not, write to the Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-LUA_VERSIONS=53
-LUA_VERSION=5.3
+LUA_VERSIONS=54
+LUA_VERSION=5.4
 
 .PHONY: all
 all: dssim dssim_gen flooding_early_tree4 flooding_early_lattice flooding_mid_lattice flooding_lattice flooding_hypercube
