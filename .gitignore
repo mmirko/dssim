@@ -50,3 +50,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+dssim
+dssim_gen
+dssim_video
+tranformer.c
