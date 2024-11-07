@@ -1,0 +1,16 @@
+registers = { STATE = {"IDLE", "INIT"}}
+messtypes = { IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
+options = { "RESET_MESS" }
+actions = {}
+restrictions = { "T" }
+
+actions[{"STATE_INIT","IMPULSE_YES"}] = 	[[
+							set STATE=IDLE;
+							send BROADCAST=SENT to NEIGHBORS;
+					   	]]
+
+actions[{"STATE_IDLE","BROADCAST_SENT"}] = 	[[
+							send BROADCAST=SENT to NEIGHBORS;
+					   	]]
+
+
