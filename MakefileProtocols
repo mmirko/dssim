@@ -1,0 +1,53 @@
+#   Distributed System Simulator (dssim)
+#   Copyright (C) 2012 Mirko Mariotti
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License along
+#   with this program; if not, write to the Free Software Foundation, Inc.,
+#   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+include local.mk
+
+.phony: all
+all: simulate
+
+.phony: clean
+clean:
+	@ rm -f *.o *.png *.avi *.tmp dssim dssim_gen dssim_video transformer.c outfile*
+
+.phony: dssim
+dssim:
+	@ ln -sf ../dssim dssim
+	@ ln -sf ../dssim_gen dssim_gen
+	@ ln -sf ../dssim_video dssim_video
+
+.phony: simulate
+simulate: dssim
+	./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -v
+
+.phony: videog-graph
+video-graph: dssim
+	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -T neato -o -b -t 100
+
+.phony: video-ted
+video-ted: dssim
+	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -e -b -t 100
+
+.phony: regression
+regression: dssim
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b > regression.tmp
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> ${NAME}" ) || echo "FAIL -> ${NAME}"
+
+.phony: regression-update
+regression-update: dssim
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b > regression.dat
+
