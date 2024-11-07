@@ -7,11 +7,13 @@
 #ifdef LUA_VERSION_53
 #include <lua5.3/lua.h>
 #include <lua5.3/lauxlib.h>
+#include <lua5.3/lualib.h>
 #endif
 
 #ifdef LUA_VERSION_54
 #include <lua5.4/lua.h>
 #include <lua5.4/lauxlib.h>
+#include <lua5.4/lualib.h>
 #endif
 
 #define CL_TARGET_OPENCL_VERSION 300
@@ -78,6 +80,8 @@
 //////////////////////////////////////// In case of custom kernels you have to config these:
 #define REGISTERS 1
 #define MESSTYPES 1
+
+int search_node_id_from_name(Agnode_t **ithnode, char *name, int nodes);
 
 void defaults(int *states, int *messages, int nodes, int step)
 {
@@ -147,6 +151,7 @@ struct teddata
 	struct teddata *next;
 	struct teddata *old;
 };
+
 
 void lua_defaults(lua_State *L, Agnode_t **ithnode, int *states, int *messages, int nodes, int step, int registers, int messtypes, int *message_defaults)
 {
@@ -873,15 +878,6 @@ void step_layout(gdImagePtr *tedim, int tedimx, int tedimy, int *messages, int *
 	}
 }
 
-int LCM(int n, int m)
-{
-	int lcm, h;
-	h = GCD(n, m);
-
-	lcm = (n * m) / (h);
-	return lcm;
-}
-
 int GCD(int n, int m)
 {
 	int c;
@@ -899,6 +895,15 @@ int GCD(int n, int m)
 		m = r;
 	}
 	return n;
+}
+
+int LCM(int n, int m)
+{
+	int lcm, h;
+	h = GCD(n, m);
+
+	lcm = (n * m) / (h);
+	return lcm;
 }
 
 int main(int argc, char *argv[])
