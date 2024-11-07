@@ -1,3 +1,0 @@
-NAME=flooding_early_lattice
-PROTOCOL=floodingearly
-GRAPH=lattice10

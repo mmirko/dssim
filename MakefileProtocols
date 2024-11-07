@@ -26,6 +26,7 @@ clean:
 
 .phony: dssim
 dssim:
+	@ $(MAKE) --no-print-directory -r -C .. dssim
 	@ ln -sf ../dssim dssim
 	@ ln -sf ../dssim_gen dssim_gen
 	@ ln -sf ../dssim_video dssim_video

@@ -1,3 +1,0 @@
-NAME=flooding_early_tree4
-PROTOCOL=floodingearly
-GRAPH=tree4
