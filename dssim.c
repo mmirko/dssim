@@ -1505,7 +1505,8 @@ int main( int argc, char* argv[] )
 	} 
 
 	// Create a command queue
-	queue = clCreateCommandQueue(context, device_id, 0, &err);
+	cl_queue_properties properties[] = { CL_QUEUE_PROPERTIES, 0, 0 };
+	queue = clCreateCommandQueueWithProperties(context, device_id, properties, &err);
 	if (!queue)
 	{
 		fprintf(stderr, "Failed to create a command queue!\n");
