@@ -26,7 +26,7 @@ clean:
 
 .phony: dssim
 dssim:
-	@ $(MAKE) --no-print-directory -r -C .. dssim
+	@ $(MAKE) --no-print-directory -r -s -C .. dssim
 	@ ln -sf ../dssim dssim
 	@ ln -sf ../dssim_gen dssim_gen
 	@ ln -sf ../dssim_video dssim_video
@@ -37,18 +37,18 @@ simulate: dssim
 
 .phony: videog-graph
 video-graph: dssim
-	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -T neato -o -b -t 100
+	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot ${RENDERER} -o ${BYPASS} ${SIMTIME}
 
 .phony: video-ted
 video-ted: dssim
-	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -e -b -t 100
+	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -e ${BYPASS} ${SIMTIME}
 
 .phony: regression
 regression: dssim
-	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b > regression.tmp
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot ${BYPASS} > regression.tmp
 	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> ${NAME}" ) || echo "FAIL -> ${NAME}"
 
 .phony: regression-update
 regression-update: dssim
-	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b > regression.dat
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot ${BYPASS} > regression.dat
 
