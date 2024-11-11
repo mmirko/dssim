@@ -37,7 +37,7 @@ simulate: dssim
 
 .phony: savekernel
 savekernel: dssim
-	./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s kernel.cl
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s kernel.cl > /dev/null 2>&1
 
 .phony: videog-graph
 video-graph: dssim
