@@ -39,6 +39,14 @@ simulate: dssim
 savekernel: dssim
 	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s kernel.cl > /dev/null 2>&1
 
+.phony: platform
+platform: dssim
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -l
+
+.phony: devices
+devices: dssim
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -L
+
 .phony: videog-graph
 video-graph: dssim
 	@ ./dssim_video -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot ${RENDERER} -o ${BYPASS} ${SIMTIME}
