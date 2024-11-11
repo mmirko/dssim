@@ -22,7 +22,7 @@ all: simulate
 
 .phony: clean
 clean:
-	@ rm -f *.o *.png *.avi *.tmp dssim dssim_gen dssim_video transformer.c outfile*
+	@ rm -f *.o *.png *.avi *.tmp *.cl dssim dssim_gen dssim_video transformer.c outfile*
 
 .phony: dssim
 dssim:
@@ -34,6 +34,10 @@ dssim:
 .phony: simulate
 simulate: dssim
 	./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -v
+
+.phony: savekernel
+savekernel: dssim
+	./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s kernel.cl
 
 .phony: videog-graph
 video-graph: dssim
