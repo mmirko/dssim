@@ -9,27 +9,21 @@
 
 void version()
 {
-	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.it\n");
+	printf("DSSimGen - Distributed System OpenCL Simulator\nCopyright 2024 - Mirko Mariotti - https://www.mirkomariotti.it\n");
 	fflush(stdout);
 }
 
 void usage()
 {
-	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2012 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
-	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o]\n");
-	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
-	printf("\tdssim -V\n\n");
+	printf("DSSimGen - Distributed System OpenCL Simulator\nCopyright 2024 - Mirko Mariotti - https://www.mirkomariotti.ii\nUsage:\n\n");
+	printf("\tdssim_gen [-v] -t graph_type -p graph_parameters\n");
+	printf("\tdssim_gen -h\n");
+	printf("\tdssim_gen -V\n\n");
 	printf("\tOptions:\n");
 	printf("\t\t-h       - This help\n");
 	printf("\t\t-v       - Be verbose\n");
 	printf("\t\t-V       - Print program version and exit\n");
-	printf("\t\t-k file  - Select the OpenCL custom kernel file (experts only)\n");
-	printf("\t\t-p file  - Select the protocol file\n");
-	printf("\t\t-g file  - Select the graph description file (graphviz dot file)\n");
-	printf("\t\t-i file  - Select the initialization file\n");
-	printf("\t\t-s file  - Save the created kernel as file\n");
-	printf("\t\t-t file  - Set the simulation time (default 10000)\n");
-	printf("\t\t-o       - Generate a PNG file for each simulation step\n");
+
 	fflush(stdout);
 
 }
@@ -134,6 +128,57 @@ Agraph_t * hypercube(GVC_t* gvc, int dim)
 	return result;
 }
 
+Agraph_t * toroid (GVC_t* gvc, int n, int m)
+{
+	int i,j;
+
+	Agraph_t * result=NULL;
+
+	Agnode_t *n1, *n2;
+	Agedge_t *e;
+
+	char tempstr1[11];
+	char tempstr2[11];
+
+	result=agopen("dsgraph", Agdirected, NULL);
+
+	for (i=0;i<n;i++) {
+		for (j=0;j<m;j++) {
+			sprintf(tempstr1,"X%04dY%04d",i,j);
+			tempstr1[10]=0;
+			n1=agnode(result, tempstr1,true);
+		}
+	}
+
+	for (i=0;i<n;i++) {
+		for (j=0;j<m;j++) {
+			sprintf(tempstr1,"X%04dY%04d",i,j);
+			tempstr1[10]=0;
+			n1=agnode(result, tempstr1,true);
+
+			sprintf(tempstr2,"X%04dY%04d",i,(j+1)%m);
+			tempstr2[10]=0;
+			n2=agnode(result, tempstr2,true);
+			e=agedge(result,n1,n2,NULL,true);
+
+			sprintf(tempstr2,"X%04dY%04d",i,(j-1+m)%m);
+			tempstr2[10]=0;
+			n2=agnode(result, tempstr2,true);
+			e=agedge(result,n1,n2,NULL,true);
+
+			sprintf(tempstr2,"X%04dY%04d",(i+1)%n,j);
+			tempstr2[10]=0;
+			n2=agnode(result, tempstr2,true);
+			e=agedge(result,n1,n2,NULL,true);
+
+			sprintf(tempstr2,"X%04dY%04d",(i-1+n)%n,j);
+			tempstr2[10]=0;
+			n2=agnode(result, tempstr2,true);
+			e=agedge(result,n1,n2,NULL,true);
+		}
+	}
+	return result;
+}
 
 Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
 {
@@ -235,6 +280,12 @@ int main( int argc, char* argv[] )
 	// Verbose flag
 	char verbose=0;
 
+	// Graph type
+	char * graph_type=NULL;
+
+	// Graph parameters
+	char * graph_parameters=NULL;
+
 	// Graph(viz) managment
 	GVC_t* gvc;
 	Agraph_t * dsgraph;
@@ -243,7 +294,7 @@ int main( int argc, char* argv[] )
 	Agedge_t * iedge;
 
 	// Start with the command line parsing
-	while ((c = getopt (argc, argv, "hvV")) != -1)
+	while ((c = getopt (argc, argv, "hvVt:p:")) != -1)
 	switch (c) {
 		case 'h':
 			usage();
@@ -255,6 +306,12 @@ int main( int argc, char* argv[] )
 		case 'V':
 			version();
 			exit(0);	
+			break;
+		case 't':
+			graph_type=strcpy((char *) malloc(strlen(optarg)+1),optarg);
+			break;
+		case 'p':
+			graph_parameters=strcpy((char *) malloc(strlen(optarg)+1),optarg);
 			break;
                 case '?':
                         if ((optopt == 'k')||(optopt == 'p')||(optopt == 'g')||(optopt == 'i'))
@@ -294,11 +351,54 @@ int main( int argc, char* argv[] )
 		printf("\n-----\n\n");
 	}
 
+
 	// Open graphviz context
 	gvc = gvContext();
 
-//	dsgraph=hypercube(gvc,3);
-	dsgraph=lattice2d(gvc,0,10,10);
+	if (graph_type==NULL || graph_parameters==NULL) {
+		fprintf(stderr,"No graph type specified\n");
+		gvFreeContext(gvc);
+		exit(1);
+	}
+
+	if (!strcmp(graph_type,"hypercube")) {
+		if (atoi(graph_parameters)<1 && atoi(graph_parameters)>6) {
+			fprintf(stderr,"Hypercube dimension must be at least 1 and at most 6\n");
+			gvFreeContext(gvc);
+			exit(1);
+		} else {
+			i=atoi(graph_parameters);
+			dsgraph=hypercube(gvc,i);
+		}
+	} else if (!strcmp(graph_type,"lattice2d")) {
+		if (sscanf(graph_parameters,"%d,%d,%d",&i,&j,&k)!=3) {
+			fprintf(stderr,"Lattice2d parameters must be in the form open,n,m\n");
+			gvFreeContext(gvc);
+			exit(1);
+		}
+		if ((i!=0)&&(i!=1) || (j<1) || (k<1) || (j>100) || (k>100)) {
+			fprintf(stderr,"Lattice2d parameters must be in the form open,n,m with open=0 or 1 and n,m between 1 and 100\n");
+			gvFreeContext(gvc);
+			exit(1);
+		}
+		dsgraph=lattice2d(gvc,i,j,k);
+	} else if (!strcmp(graph_type,"toroid")) {
+		if (sscanf(graph_parameters,"%d,%d",&i,&j)!=2) {
+			fprintf(stderr,"Toroid parameters must be in the form n,m\n");
+			gvFreeContext(gvc);
+			exit(1);
+		}
+		if ((i<1) || (j<1) || (i>100) || (j>100)) {
+			fprintf(stderr,"Toroid parameters must be in the form n,m with n,m between 1 and 100\n");
+			gvFreeContext(gvc);
+			exit(1);
+		}
+		dsgraph=toroid(gvc,i,j);
+	} else {
+		fprintf(stderr,"Unknown graph type %s\n",graph_type);
+		gvFreeContext(gvc);
+		exit(1);
+	}
 
 	gvLayout (gvc, dsgraph,"dot");
 	gvRender (gvc, dsgraph,"dot",stdout);
