@@ -180,6 +180,62 @@ Agraph_t * toroid (GVC_t* gvc, int n, int m)
 	return result;
 }
 
+Agraph_t * lattice1d (GVC_t * gvc, int open, int n)
+{
+	int i;
+
+	Agraph_t * result=NULL;
+
+	Agnode_t *n1, *n2;
+	Agedge_t *e;
+
+	char tempstr1[11];
+	char tempstr2[11];
+
+	result=agopen("dsgraph", Agdirected, NULL);
+
+	for (i=0;i<n;i++) {
+		sprintf(tempstr1,"X%04d",i);
+		tempstr1[10]=0;
+		n1=agnode(result, tempstr1,true);
+	}
+
+	for (i=0;i<n;i++) {
+		sprintf(tempstr1,"X%04d",i);
+		tempstr1[10]=0;
+		n1=agnode(result, tempstr1,true);
+
+		if (i==0) {
+			if ((open==0)&&(n>2)) {
+				sprintf(tempstr2,"X%04d",n-1);
+				tempstr2[10]=0;
+				n2=agnode(result, tempstr2,true);
+				e=agedge(result,n1,n2,NULL,true);
+			}
+		} else {
+			sprintf(tempstr2,"X%04d",i-1);
+			tempstr2[10]=0;
+			n2=agnode(result, tempstr2,true);
+			e=agedge(result,n1,n2,NULL,true);
+		}
+
+		if (i==n-1) {
+			if ((open==0)&&(n>2)) {
+				sprintf(tempstr2,"X%04d",0);
+				tempstr2[10]=0;
+				n2=agnode(result, tempstr2,true);
+				e=agedge(result,n1,n2,NULL,true);
+			}
+		} else {
+			sprintf(tempstr2,"X%04d",i+1);
+			tempstr2[10]=0;
+			n2=agnode(result, tempstr2,true);
+			e=agedge(result,n1,n2,NULL,true);
+		}
+	}
+	return result;
+}
+
 Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
 {
 	int i,j;
@@ -268,8 +324,6 @@ Agraph_t * lattice2d(GVC_t* gvc, int open, int n, int m)
 	}
 	return result;
 }
-
-
 
 int main( int argc, char* argv[] )
 {
@@ -370,6 +424,18 @@ int main( int argc, char* argv[] )
 			i=atoi(graph_parameters);
 			dsgraph=hypercube(gvc,i);
 		}
+	} else if (!strcmp(graph_type,"lattice1d")) {
+		if (sscanf(graph_parameters,"%d,%d",&i,&j)!=2) {
+			fprintf(stderr,"Lattice1d parameters must be in the form open,n\n");
+			gvFreeContext(gvc);
+			exit(1);
+		}
+		if ((i!=0)&&(i!=1) || (j<1) || (j>100)) {
+			fprintf(stderr,"Lattice1d parameters must be in the form open,n with open=0 or 1 and n between 1 and 100\n");
+			gvFreeContext(gvc);
+			exit(1);
+		}
+		dsgraph=lattice1d(gvc,i,j);
 	} else if (!strcmp(graph_type,"lattice2d")) {
 		if (sscanf(graph_parameters,"%d,%d,%d",&i,&j,&k)!=3) {
 			fprintf(stderr,"Lattice2d parameters must be in the form open,n,m\n");
