@@ -19,7 +19,7 @@
 LUA_LIB_VERSION = $(shell lua -e "print(string.match(_VERSION, '5%.[0-9]'))")
 
 # Set LUA_VERSION to 5.3 if the headers are in include/lua5.3, 5.4 if they are in include/lua5.4, and to default if they are directly in include
-LUA_VERSION = $(shell if [ -d /usr/include/lua5.3 ]; then echo 53; elif [ -d /usr/include/lua54 ]; then echo 54; else echo DEFAULT ; fi)
+LUA_VERSION = $(shell if [ -d /usr/include/lua5.3 ]; then echo 53; elif [ -d /usr/include/lua5.4 ]; then echo 54; else echo DEFAULT ; fi)
 
 
 .PHONY: all
