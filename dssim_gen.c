@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <stdbool.h>
 #include <graphviz/gvc.h>
 #include <graphviz/cgraph.h>
 
