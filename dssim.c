@@ -16,6 +16,13 @@
 #include <lua5.4/lualib.h>
 #endif
 
+#ifdef LUA_VERSION_DEFAULT
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#endif
+
+
 #define CL_TARGET_OPENCL_VERSION 300
 #include <CL/opencl.h>
 
