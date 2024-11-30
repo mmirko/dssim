@@ -1,0 +1,10 @@
+defaults = { "STATE_IDLE", "IMPULSE_NO" , "BROADCAST_NO"}
+
+boundary = {}
+boundary[0] = { ["N1"] = {"STATE_INIT","IMPULSE_YES"} }
+
+ending = {"STATE_DONE", "IMPULSE_NO" , "BROADCAST_NO" }
+
+styles = { STATE_DONE = { color = "green" } , registers_default = { color = "black" } , BROADCAST_SENT = { arrowhead = "normal", arrowtail = "normal", color = "black" }, messages_default =  { arrowhead = "none", arrowtail = "none", color = "grey80" } }
+
+report = { "TIME_COMPLEXITY", "MESSAGE_COMPLEXITY" }
