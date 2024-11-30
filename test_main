@@ -2,5 +2,6 @@ dofile 'test_proto'
 dofile 'test_init'
 dofile 'transformer.lua'
 
-print(action_program({"STATE_DONE","BROADCAST_SENT"},"set STATE=DONE; send BROADCAST=SENT to NEIGHBORS;"))
+print(transformer("prova"))
+--print(action_program({"STATE_DONE","BROADCAST_SENT"},"set STATE=DONE; send BROADCAST=SENT to NEIGHBORS;"))
 --print(string.gsub(create_actions(),"<<<CR>>>","\n"))
