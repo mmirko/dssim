@@ -35,9 +35,13 @@ dssim:
 simulate: dssim
 	./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -v
 
+.phony: usekernel
+usekernel: dssim
+	./dssim -i ${PROTOCOL}.init -g ${GRAPH}.dot -k ${PROTOCOL}.cl -b -v
+
 .phony: savekernel
 savekernel: dssim
-	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s kernel.cl > /dev/null 2>&1
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s ${PROTOCOL}.cl > /dev/null 2>&1
 
 .phony: platform
 platform: dssim
