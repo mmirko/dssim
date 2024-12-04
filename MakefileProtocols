@@ -37,7 +37,7 @@ simulate: dssim
 
 .phony: usekernel
 usekernel: dssim
-	./dssim -i ${PROTOCOL}.init -g ${GRAPH}.dot -k ${PROTOCOL}.cl -b -v
+	./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -k ${PROTOCOL}.cl -b -v
 
 .phony: savekernel
 savekernel: dssim
