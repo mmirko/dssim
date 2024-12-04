@@ -1310,6 +1310,14 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (initial_file == NULL)
+	{
+		fprintf(stderr, "An intial file is needed.\n\n");
+		usage();
+		exit(1);
+	}
+
+
 	// Check the operation mode
 	if ((protocol_file == NULL) && (kernel_file == NULL))
 	{
@@ -1323,83 +1331,78 @@ int main(int argc, char *argv[])
 		usage();
 		exit(1);
 	}
-	else if ((protocol_file != NULL) && (kernel_file == NULL))
-	{
 
-		if (initial_file == NULL)
+	// At this point we have a graph and an initial condition and either a protocol or a custom kernel
+
+	// Load the lua trasformation engine
+	if (luaL_dostring(L, transformer_function))
+	{
+		fprintf(stderr, "The transformer lua core did not load.");
+		exit(1);
+	}
+
+	// Load the lua initial condition file
+	if (luaL_dofile(L, initial_file))
+	{
+		fprintf(stderr, "Failed to load the initial file.");
+		exit(1);
+	}
+
+	// Get the number of restrictions
+	lua_getglobal(L, "get_restrictions_num");
+	lua_call(L, 0, 1);
+	rest_num = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	for (l = 0; l < rest_num; l++)
+	{
+		// Getting the restriction name
+		lua_getglobal(L, "get_restriction_name");
+		lua_pushinteger(L, l);
+		lua_call(L, 1, 1);
+		rest_name = (char *)lua_tostring(L, -1);
+		if (!strcmp(rest_name, "T"))
 		{
-			fprintf(stderr, "An intial file is needed.\n\n");
-			usage();
-			exit(1);
+			REST_T_SET(restrictions);
 		}
+		lua_pop(L, 1);
+	}
+
+	// Find out the number of protocol registers
+	lua_getglobal(L, "num_registers");
+	lua_call(L, 0, 1);
+	registers = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	if (registers == 0)
+	{
+		fprintf(stderr, "The protocol seems to have 0 registers, this cannot be right.");
+		shutdown(gvc, dsgraph, L);
+	}
+
+	// Find out the number of messages types
+	lua_getglobal(L, "num_messtypes");
+	lua_call(L, 0, 1);
+	messtypes = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	if (messtypes == 0)
+	{
+		fprintf(stderr, "The protocol seems to have 0 messtypes, this cannot be right.");
+		shutdown(gvc, dsgraph, L);
+	}
+
+
+	if ((protocol_file != NULL) && (kernel_file == NULL))
+	{
 
 		opmode = 0;
 
-		// printf("Transformer function\n");
-		// printf("%s",transformer_function);
-		// printf("\n----\n");
-
-		// Load the lua trasformation engine
-		if (luaL_dostring(L, transformer_function))
-		{
-			fprintf(stderr, "The transformer lua core did not load.");
-			exit(1);
-		}
 		if (luaL_dofile(L, protocol_file))
 		{
 			fprintf(stderr, "Failed to load the protocol file.");
 			exit(1);
 		}
-		if (luaL_dofile(L, initial_file))
-		{
-			fprintf(stderr, "Failed to load the initial file.");
-			exit(1);
-		}
-
-		// Get the number of restrictions
-		lua_getglobal(L, "get_restrictions_num");
-		lua_call(L, 0, 1);
-		rest_num = lua_tointeger(L, -1);
-		lua_pop(L, 1);
-
-		for (l = 0; l < rest_num; l++)
-		{
-			// Getting the restriction name
-			lua_getglobal(L, "get_restriction_name");
-			lua_pushinteger(L, l);
-			lua_call(L, 1, 1);
-			rest_name = (char *)lua_tostring(L, -1);
-			if (!strcmp(rest_name, "T"))
-			{
-				REST_T_SET(restrictions);
-			}
-			lua_pop(L, 1);
-		}
-
-		// Find out the number of protocol registers
-		lua_getglobal(L, "num_registers");
-		lua_call(L, 0, 1);
-		registers = lua_tointeger(L, -1);
-		lua_pop(L, 1);
-
-		if (registers == 0)
-		{
-			fprintf(stderr, "The protocol seems to have 0 registers, this cannot be right.");
-			shutdown(gvc, dsgraph, L);
-		}
-
-		// Find out the number of messages types
-		lua_getglobal(L, "num_messtypes");
-		lua_call(L, 0, 1);
-		messtypes = lua_tointeger(L, -1);
-		lua_pop(L, 1);
-
-		if (messtypes == 0)
-		{
-			fprintf(stderr, "The protocol seems to have 0 messtypes, this cannot be right.");
-			shutdown(gvc, dsgraph, L);
-		}
-
 		// Allocate memory for messa_defaults
 		message_defaults = (int *)malloc(messtypes * sizeof(int));
 
