@@ -1829,9 +1829,15 @@ int main(int argc, char *argv[])
 
 		// Read the results from the device
 		err = clEnqueueReadBuffer(queue, d_ex_next, CL_TRUE, 0, nodes * bytes, ex_next, 0, NULL, NULL);
-		err = clEnqueueReadBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes * bytes, ex_stat, 0, NULL, NULL);
+		err |= clEnqueueReadBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes * bytes, ex_stat, 0, NULL, NULL);
 		err |= clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes * registers * bytes, states, 0, NULL, NULL);
 		err |= clEnqueueReadBuffer(queue, d_messages_out, CL_TRUE, 0, nodes * nodes * messtypes * bytes, messages, 0, NULL, NULL);
+		if (err != CL_SUCCESS)
+		{
+			fprintf(stderr, "Failed to read output array! %d\n", err);
+			return EXIT_FAILURE;
+		}
+
 
 		if (pngout)
 		{
@@ -1885,12 +1891,6 @@ int main(int argc, char *argv[])
 			gdImagePng(tedim, tedout);
 			fclose(tedout);
 			gdImageDestroy(tedim);
-		}
-
-		if (err != CL_SUCCESS)
-		{
-			fprintf(stderr, "Failed to read output array! %d\n", err);
-			return EXIT_FAILURE;
 		}
 
 		for (i = 0; i < nodes; i++)

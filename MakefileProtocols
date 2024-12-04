@@ -64,6 +64,12 @@ regression: dssim
 	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot ${BYPASS} > regression.tmp
 	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> ${NAME}" ) || echo "FAIL -> ${NAME}"
 
+.phony: usekernelregression
+usekernelregression: dssim
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -b -s ${PROTOCOL}.cl > /dev/null 2>&1
+	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot -k ${PROTOCOL}.cl ${BYPASS} > regression.tmp
+	@ (cmp regression.tmp regression.dat > /dev/null 2>&1  && echo "OK   -> ${NAME}" ) || echo "FAIL -> ${NAME}"
+
 .phony: regression-update
 regression-update: dssim
 	@ ./dssim -i ${PROTOCOL}.init -p ${PROTOCOL} -g ${GRAPH}.dot ${BYPASS} > regression.dat
