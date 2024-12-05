@@ -84,57 +84,7 @@
 #include "transformer.c"
 #include "messages.c"
 
-//////////////////////////////////////// In case of custom kernels you have to config these:
-#define REGISTERS 1
-#define MESSTYPES 1
-
 int search_node_id_from_name(Agnode_t **ithnode, char *name, int nodes);
-
-void defaults(int *states, int *messages, int nodes, int step)
-{
-	int i, j, k;
-
-	// Step -1 states and initial messages, step 0 messages_out.
-
-	if (step == -1)
-	{
-		for (i = 0; i < nodes; i++)
-		{
-			// States defaults
-			for (j = 0; j < REGISTERS; j++)
-			{
-				*(states + i * REGISTERS + j) = 0;
-			}
-		}
-
-		for (i = 0; i < nodes; i++)
-		{
-			for (j = 0; j < nodes; j++)
-			{
-				// Messages defaults (both steps)
-				for (k = 0; k < MESSTYPES; k++)
-				{
-					*(messages + (i * nodes + j) * MESSTYPES + k) = 0;
-				}
-			}
-		}
-	}
-	else
-	{
-		// Messages default (step 0)
-		*(messages) = 1;
-		*(states) = 1;
-	}
-}
-
-void ending(int *ending_states, int *ending_messages, int registers, int messtypes)
-{
-	*(ending_messages) = 0;
-	*(ending_messages + 1) = 0;
-	*(ending_states) = 2;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
 
 struct style_list
 {
@@ -353,13 +303,12 @@ int lua_check_report(lua_State *L, char *report_name)
 	}
 }
 
-// Id to name resolution (in case of custom opmode the resolution do not work)
-char *id_to_name(lua_State *L, int opmode, int regotmess, int lev1, int lev2)
+// Id to name resolution
+char *id_to_name(lua_State *L, int regotmess, int lev1, int lev2)
 {
 	char *result;
 
-	// The resolution does not work in opmode 1
-	if ((opmode == 1) || (L == NULL))
+	if (L == NULL)
 	{
 		return NULL;
 	}
@@ -484,7 +433,7 @@ void styles_print(struct style_entry *styles)
 }
 
 // The node styling function
-void style_node(lua_State *L, int opmode, struct style_entry *styles, Agnode_t **ithnode, int i, int *states, int nodes, int registers)
+void style_node(lua_State *L, struct style_entry *styles, Agnode_t **ithnode, int i, int *states, int nodes, int registers)
 {
 	int j;
 	int hit;
@@ -494,7 +443,7 @@ void style_node(lua_State *L, int opmode, struct style_entry *styles, Agnode_t *
 
 	for (j = 0, hit = 0; j < registers; j++)
 	{
-		tempstr = (char *)id_to_name(L, opmode, 0, j, *(states + i * registers + j));
+		tempstr = (char *)id_to_name(L, 0, j, *(states + i * registers + j));
 
 		for (istyles = styles; istyles != NULL; istyles = istyles->next)
 		{
@@ -530,7 +479,7 @@ void style_node(lua_State *L, int opmode, struct style_entry *styles, Agnode_t *
 }
 
 // The edge styling function
-void style_edge(lua_State *L, int opmode, struct style_entry *styles, Agraph_t *dsgraph, Agnode_t **ithnode, int i, int j, int *messages, int nodes, int messtypes)
+void style_edge(lua_State *L, struct style_entry *styles, Agraph_t *dsgraph, Agnode_t **ithnode, int i, int j, int *messages, int nodes, int messtypes)
 {
 	int k;
 	int hit;
@@ -545,7 +494,7 @@ void style_edge(lua_State *L, int opmode, struct style_entry *styles, Agraph_t *
 	for (k = 0, hit = 0; k < messtypes; k++)
 	{
 
-		tempstr = (char *)id_to_name(L, opmode, 1, k, *(messages + (i * nodes + j) * messtypes + k));
+		tempstr = (char *)id_to_name(L, 1, k, *(messages + (i * nodes + j) * messtypes + k));
 
 		for (istyles = styles; istyles != NULL; istyles = istyles->next)
 		{
@@ -992,10 +941,10 @@ int main(int argc, char *argv[])
 	struct mes_queue *queues;
 
 	// Node registers
-	unsigned int registers = REGISTERS;
+	unsigned int registers = 0;
 
 	// Message types
-	unsigned int messtypes = MESSTYPES;
+	unsigned int messtypes = 0;
 
 	// Array fot the default message value
 	int *message_defaults;
@@ -1019,9 +968,6 @@ int main(int argc, char *argv[])
 	// OpenCL kernel source variables
 	char *kernelSource;
 	size_t source_size;
-
-	// Operation mode for initfile: 0 config, 1 custom
-	int opmode;
 
 	// Output png files: 0 no, 1 yes
 	int pngout = 0;
@@ -1310,122 +1256,118 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (initial_file == NULL)
+	{
+		fprintf(stderr, "An intial file is needed.\n\n");
+		usage();
+		exit(1);
+	}
+
+
 	// Check the operation mode
-	if ((protocol_file == NULL) && (kernel_file == NULL))
+	if (protocol_file == NULL)
 	{
-		fprintf(stderr, "Either a protocol file or a custom opencl kernel is required.\n\n");
+		fprintf(stderr, "A protocol file is needed.\n\n");
 		usage();
 		exit(1);
 	}
-	else if ((protocol_file != NULL) && (kernel_file != NULL))
+
+	// Load the lua trasformation engine
+	if (luaL_dostring(L, transformer_function))
 	{
-		fprintf(stderr, "A protocol file or a custom opencl kernel is required (not both).\n\n");
-		usage();
+		fprintf(stderr, "The transformer lua core did not load.");
 		exit(1);
 	}
-	else if ((protocol_file != NULL) && (kernel_file == NULL))
+
+	// Load the lua protocol file
+	if (luaL_dofile(L, protocol_file))
 	{
+		fprintf(stderr, "Failed to load the protocol file.");
+		exit(1);
+	}
 
-		if (initial_file == NULL)
+	// Load the lua initial condition file
+	if (luaL_dofile(L, initial_file))
+	{
+		fprintf(stderr, "Failed to load the initial file.");
+		exit(1);
+	}
+
+	// Get the number of restrictions
+	lua_getglobal(L, "get_restrictions_num");
+	lua_call(L, 0, 1);
+	rest_num = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	for (l = 0; l < rest_num; l++)
+	{
+		// Getting the restriction name
+		lua_getglobal(L, "get_restriction_name");
+		lua_pushinteger(L, l);
+		lua_call(L, 1, 1);
+		rest_name = (char *)lua_tostring(L, -1);
+		if (!strcmp(rest_name, "T"))
 		{
-			fprintf(stderr, "An intial file is needed.\n\n");
-			usage();
-			exit(1);
+			REST_T_SET(restrictions);
 		}
-
-		opmode = 0;
-
-		// printf("Transformer function\n");
-		// printf("%s",transformer_function);
-		// printf("\n----\n");
-
-		// Load the lua trasformation engine
-		if (luaL_dostring(L, transformer_function))
-		{
-			fprintf(stderr, "The transformer lua core did not load.");
-			exit(1);
-		}
-		if (luaL_dofile(L, protocol_file))
-		{
-			fprintf(stderr, "Failed to load the protocol file.");
-			exit(1);
-		}
-		if (luaL_dofile(L, initial_file))
-		{
-			fprintf(stderr, "Failed to load the initial file.");
-			exit(1);
-		}
-
-		// Get the number of restrictions
-		lua_getglobal(L, "get_restrictions_num");
-		lua_call(L, 0, 1);
-		rest_num = lua_tointeger(L, -1);
 		lua_pop(L, 1);
+	}
 
-		for (l = 0; l < rest_num; l++)
-		{
-			// Getting the restriction name
-			lua_getglobal(L, "get_restriction_name");
-			lua_pushinteger(L, l);
-			lua_call(L, 1, 1);
-			rest_name = (char *)lua_tostring(L, -1);
-			if (!strcmp(rest_name, "T"))
-			{
-				REST_T_SET(restrictions);
-			}
-			lua_pop(L, 1);
-		}
+	// Find out the number of protocol registers
+	lua_getglobal(L, "num_registers");
+	lua_call(L, 0, 1);
+	registers = lua_tointeger(L, -1);
+	lua_pop(L, 1);
 
-		// Find out the number of protocol registers
-		lua_getglobal(L, "num_registers");
-		lua_call(L, 0, 1);
-		registers = lua_tointeger(L, -1);
-		lua_pop(L, 1);
+	if (registers == 0)
+	{
+		fprintf(stderr, "The protocol seems to have 0 registers, this cannot be right.");
+		shutdown(gvc, dsgraph, L);
+	}
 
-		if (registers == 0)
-		{
-			fprintf(stderr, "The protocol seems to have 0 registers, this cannot be right.");
-			shutdown(gvc, dsgraph, L);
-		}
+	if (verbose)
+	{
+		printf("The protocol has %d registers.\n", registers);
+	}
 
-		// Find out the number of messages types
-		lua_getglobal(L, "num_messtypes");
-		lua_call(L, 0, 1);
-		messtypes = lua_tointeger(L, -1);
-		lua_pop(L, 1);
+	// Find out the number of messages types
+	lua_getglobal(L, "num_messtypes");
+	lua_call(L, 0, 1);
+	messtypes = lua_tointeger(L, -1);
+	lua_pop(L, 1);
 
-		if (messtypes == 0)
-		{
-			fprintf(stderr, "The protocol seems to have 0 messtypes, this cannot be right.");
-			shutdown(gvc, dsgraph, L);
-		}
+	if (messtypes == 0)
+	{
+		fprintf(stderr, "The protocol seems to have 0 messtypes, this cannot be right.");
+		shutdown(gvc, dsgraph, L);
+	}
 
-		// Allocate memory for messa_defaults
-		message_defaults = (int *)malloc(messtypes * sizeof(int));
+	if (verbose)
+	{
+		printf("The protocol has %d messtypes.\n", messtypes);
+	}
 
-		// Allocate memory for each vector on host
-		states = (int *)malloc(nodes * registers * bytes);
-		messages = (int *)malloc(nodes * nodes * messtypes * bytes);
+	// Populate the styles
+	styles = lua_styles(L);
+	if (verbose)
+	{
+		printf("Loading graphical styles:\n");
+		styles_print(styles);
+	}
 
-		// Ending states and messages memory
-		ending_states = (int *)malloc(registers * bytes);
-		ending_messages = (int *)malloc(messtypes * bytes);
+	// Allocate memory for messa_defaults
+	message_defaults = (int *)malloc(messtypes * sizeof(int));
 
-		// Populate the ending conditions
-		if (bypass_ending == 0)
-		{
-			lua_ending(L, ending_states, ending_messages, registers, messtypes);
-		}
+	// Allocate memory for each vector on host
+	states = (int *)malloc(nodes * registers * bytes);
+	messages = (int *)malloc(nodes * nodes * messtypes * bytes);
 
-		// Populate the styles
-		styles = lua_styles(L);
-		if (verbose)
-		{
-			printf("Loading graphical styles:\n");
-			styles_print(styles);
-		}
+	// Ending states and messages memory
+	ending_states = (int *)malloc(registers * bytes);
+	ending_messages = (int *)malloc(messtypes * bytes);
 
-		// Find out the number of messages types
+	if (kernel_file == NULL)
+	{
 		lua_getglobal(L, "transformer");
 		lua_pushstring(L, protocol_file);
 		lua_call(L, 1, 2);
@@ -1457,9 +1399,8 @@ int main(int argc, char *argv[])
 			fclose(fp);
 		}
 	}
-	else if ((protocol_file == NULL) && (kernel_file != NULL))
+	else
 	{
-		opmode = 1;
 		entityfile = kernel_file;
 		entity = (char *)malloc((int)(strlen(entityfile) - 2) * sizeof(char));
 		strncpy(entity, entityfile, (int)strlen(entityfile) - 3);
@@ -1478,16 +1419,12 @@ int main(int argc, char *argv[])
 		kernelSource = (char *)malloc(MAX_SOURCE_SIZE);
 		source_size = fread(kernelSource, 1, MAX_SOURCE_SIZE, fp);
 		fclose(fp);
+	}
 
-		// Allocate memory for each vector on host
-		states = (int *)malloc(nodes * registers * bytes);
-		messages = (int *)malloc(nodes * nodes * messtypes * bytes);
-
-		// Ending states and messages memory
-		ending_states = (int *)malloc(registers * bytes);
-		ending_messages = (int *)malloc(messtypes * bytes);
-
-		ending(ending_states, ending_messages, registers, messtypes);
+	// Populate the ending conditions
+	if (bypass_ending == 0)
+	{
+		lua_ending(L, ending_states, ending_messages, registers, messtypes);
 	}
 
 	if (REST_T_CHECK(restrictions))
@@ -1761,7 +1698,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Failed to create compute kernel!\n");
 		return EXIT_FAILURE;
 	}
-
 	// Create the input and output arrays in device memory for our calculation
 	d_ex_incr = clCreateBuffer(context, CL_MEM_READ_ONLY, nodes * bytes, NULL, NULL);
 	d_ex_next = clCreateBuffer(context, CL_MEM_READ_WRITE, nodes * bytes, NULL, NULL);
@@ -1780,17 +1716,8 @@ int main(int argc, char *argv[])
 	// Write our data set into the input array in device memory
 	err = clEnqueueWriteBuffer(queue, d_links, CL_TRUE, 0, nodes * nodes * bytes, links, 0, NULL, NULL);
 
-	// Set the default according to the operation mode (the default is the temporal step -1 plus superposition of step 0)
-	if (opmode == 1)
-	{
-		defaults(states, messages, nodes, -1);
-		defaults(states, messages, nodes, 0);
-	}
-	else
-	{
-		lua_defaults(L, ithnode, states, messages, nodes, -1, registers, messtypes, message_defaults);
-		lua_defaults(L, ithnode, states, messages, nodes, 0, registers, messtypes, message_defaults);
-	}
+	lua_defaults(L, ithnode, states, messages, nodes, -1, registers, messtypes, message_defaults);
+	lua_defaults(L, ithnode, states, messages, nodes, 0, registers, messtypes, message_defaults);
 
 	err |= clEnqueueWriteBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes * bytes, ex_stat, 0, NULL, NULL);
 	err |= clEnqueueWriteBuffer(queue, d_ex_incr, CL_TRUE, 0, nodes * bytes, ex_incr, 0, NULL, NULL);
@@ -1807,7 +1734,7 @@ int main(int argc, char *argv[])
 			printf("   Node %s registers: ", agnameof(*(ithnode + i)));
 			for (j = 0; j < registers; j++)
 			{
-				tempstr = id_to_name(L, opmode, 0, j, *(states + i * registers + j));
+				tempstr = id_to_name(L, 0, j, *(states + i * registers + j));
 				if (tempstr != NULL)
 				{
 					printf("%s ", tempstr);
@@ -1829,7 +1756,7 @@ int main(int argc, char *argv[])
 				printf("   Node %s -> %s messages: ", agnameof(*(ithnode + i)), agnameof(*(ithnode + j)));
 				for (k = 0; k < messtypes; k++)
 				{
-					tempstr = id_to_name(L, opmode, 1, k, *(messages + (i * nodes + j) * messtypes + k));
+					tempstr = id_to_name(L, 1, k, *(messages + (i * nodes + j) * messtypes + k));
 					if (tempstr != NULL)
 					{
 						printf("%s ", tempstr);
@@ -1848,14 +1775,7 @@ int main(int argc, char *argv[])
 	}
 
 	// The out_messages are set to default
-	if (opmode == 1)
-	{
-		defaults(states, messages, nodes, -1);
-	}
-	else
-	{
-		lua_defaults(L, ithnode, states, messages, nodes, -1, registers, messtypes, message_defaults);
-	}
+	lua_defaults(L, ithnode, states, messages, nodes, -1, registers, messtypes, message_defaults);
 
 	err |= clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0, nodes * nodes * messtypes * bytes, messages, 0, NULL, NULL);
 
@@ -1909,22 +1829,28 @@ int main(int argc, char *argv[])
 
 		// Read the results from the device
 		err = clEnqueueReadBuffer(queue, d_ex_next, CL_TRUE, 0, nodes * bytes, ex_next, 0, NULL, NULL);
-		err = clEnqueueReadBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes * bytes, ex_stat, 0, NULL, NULL);
+		err |= clEnqueueReadBuffer(queue, d_ex_stat, CL_TRUE, 0, nodes * bytes, ex_stat, 0, NULL, NULL);
 		err |= clEnqueueReadBuffer(queue, d_states, CL_TRUE, 0, nodes * registers * bytes, states, 0, NULL, NULL);
 		err |= clEnqueueReadBuffer(queue, d_messages_out, CL_TRUE, 0, nodes * nodes * messtypes * bytes, messages, 0, NULL, NULL);
+		if (err != CL_SUCCESS)
+		{
+			fprintf(stderr, "Failed to read output array! %d\n", err);
+			return EXIT_FAILURE;
+		}
+
 
 		if (pngout)
 		{
 
 			for (i = 0; i < nodes; i++)
 			{
-				style_node(L, opmode, styles, ithnode, i, states, nodes, registers);
+				style_node(L, styles, ithnode, i, states, nodes, registers);
 
 				for (j = 0; j < nodes; j++)
 				{
 					if (*(links + i * nodes + j) != 0)
 					{
-						style_edge(L, opmode, styles, dsgraph, ithnode, i, j, messages, nodes, messtypes);
+						style_edge(L, styles, dsgraph, ithnode, i, j, messages, nodes, messtypes);
 					}
 				}
 			}
@@ -1967,12 +1893,6 @@ int main(int argc, char *argv[])
 			gdImageDestroy(tedim);
 		}
 
-		if (err != CL_SUCCESS)
-		{
-			fprintf(stderr, "Failed to read output array! %d\n", err);
-			return EXIT_FAILURE;
-		}
-
 		for (i = 0; i < nodes; i++)
 		{
 			if (verbose)
@@ -1980,7 +1900,7 @@ int main(int argc, char *argv[])
 				printf("   Node %s registers: ", agnameof(*(ithnode + i)));
 				for (j = 0; j < registers; j++)
 				{
-					tempstr = id_to_name(L, opmode, 0, j, *(states + i * registers + j));
+					tempstr = id_to_name(L, 0, j, *(states + i * registers + j));
 					if (tempstr != NULL)
 					{
 						printf("%s ", tempstr);
@@ -2006,7 +1926,7 @@ int main(int argc, char *argv[])
 				{
 					if (*(messages + (i * nodes + j) * messtypes + k) != *(message_defaults + k))
 					{
-						tempstr = id_to_name(L, opmode, 1, k, *(messages + (i * nodes + j) * messtypes + k));
+						tempstr = id_to_name(L, 1, k, *(messages + (i * nodes + j) * messtypes + k));
 						if (tempstr != NULL)
 						{
 							if (verbose)
@@ -2038,15 +1958,7 @@ int main(int argc, char *argv[])
 				break;
 		}
 
-		// Resetting the messages array to defaults
-		if (opmode == 1)
-		{
-			defaults(states, messages, nodes, -1);
-		}
-		else
-		{
-			lua_defaults(L, ithnode, states, messages, nodes, -1, registers, messtypes, message_defaults);
-		}
+		lua_defaults(L, ithnode, states, messages, nodes, -1, registers, messtypes, message_defaults);
 
 		err = clEnqueueWriteBuffer(queue, d_messages_out, CL_TRUE, 0, nodes * nodes * messtypes * bytes, messages, 0, NULL, NULL);
 

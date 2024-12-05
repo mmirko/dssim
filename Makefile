@@ -46,3 +46,7 @@ test: dssim
 .PHONY: regression
 regression: dssim
 	@ for dir in proto_*; do $(MAKE) --no-print-directory -r -C $$dir regression; done
+
+.PHONY: usekernelregression
+usekernelregression: dssim
+	@ for dir in proto_*; do $(MAKE) --no-print-directory -r -C $$dir usekernelregression; done
