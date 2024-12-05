@@ -1,5 +1,6 @@
-registers = { STATE = {"IDLE", "INIT", "DONE"}}
+registers = { STATE = {"IDLE", "INIT", "VISITED", "DONE"}}
 messtypes = { IMPULSE = {"YES"}, BROADCAST = {"SENT"} }
+lists = { }
 options = { "RESET_MESS" }
 actions = {}
 restrictions = { "T" }
