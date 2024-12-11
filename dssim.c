@@ -556,13 +556,13 @@ int check_end(int *states, int *messages, int nodes, int *ending_states, int *en
 
 void version()
 {
-	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2013 - Mirko Mariotti - http://www.mirkomariotti.it\n");
+	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2024 - Mirko Mariotti - https://www.mirkomariotti.it\n");
 	fflush(stdout);
 }
 
 void usage()
 {
-	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2013 - Mirko Mariotti - http://www.mirkomariotti.ii\nUsage:\n\n");
+	printf("DSSim - Distributed System OpenCL Simulator\nCopyright 2024 - Mirko Mariotti - https://www.mirkomariotti.ii\nUsage:\n\n");
 	printf("\tdssim -g graph_dot_file -p protocol_file -i init_file [-s OpenCL_custom_kernel] [-t time] [-v] [-o] [-T type] [-b] [-e]\n");
 	printf("\t(expert only) dssim -g graph_dot_file -k OpenCL_custom_protocol_file [-v][-o]\n");
 	printf("\tdssim -V\n\n");
